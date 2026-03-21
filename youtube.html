@@ -15,7 +15,6 @@
         }
 
         body {
-            /* Animated gradient background to make the glass effect pop */
             background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e);
             background-size: 400% 400%;
             animation: gradientBG 15s ease infinite;
@@ -128,10 +127,10 @@
 
         /* --- Iframe Container (16:9 Aspect Ratio) --- */
         #video-container {
-            display: none; /* Hidden until valid link is submitted */
+            display: none;
             position: relative;
             width: 100%;
-            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            padding-top: 56.25%;
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
@@ -152,6 +151,64 @@
             height: 1px;
             background: rgba(255, 255, 255, 0.1);
             margin: 30px 0;
+        }
+
+        /* --- History Section --- */
+        #history-section {
+            display: none; /* Hidden until a second video is played */
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        #history-section h3 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        #history-list {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #8b5cf6 rgba(0,0,0,0.2);
+        }
+
+        #history-list::-webkit-scrollbar {
+            height: 8px;
+        }
+        #history-list::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+        }
+        #history-list::-webkit-scrollbar-thumb {
+            background-color: #8b5cf6;
+            border-radius: 4px;
+        }
+
+        .history-item {
+            min-width: 160px;
+            max-width: 160px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            background: rgba(0,0,0,0.4);
+        }
+
+        .history-item:hover {
+            transform: translateY(-3px);
+            border-color: #8b5cf6;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .history-item img {
+            width: 100%;
+            height: 90px;
+            object-fit: cover;
+            display: block;
         }
 
     </style>
@@ -179,6 +236,11 @@
         <div id="video-container">
             <iframe id="video-frame" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </div>
+
+        <div id="history-section">
+            <h3>History</h3>
+            <div id="history-list"></div>
+        </div>
     </div>
 
     <script>
@@ -188,12 +250,51 @@
         const videoContainer = document.getElementById('video-container');
         const videoFrame = document.getElementById('video-frame');
         const errorMsg = document.getElementById('error-msg');
+        
+        const historySection = document.getElementById('history-section');
+        const historyList = document.getElementById('history-list');
+        
+        // Array to store watched video IDs
+        let videoHistory = [];
 
-        // Robust function to extract the 11-character YouTube ID from various URL structures
         function extractYouTubeID(url) {
             const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i;
             const match = url.match(regExp);
             return (match && match[1].length === 11) ? match[1] : null;
+        }
+
+        function updateHistoryUI() {
+            // Show history section if there is more than 1 video in history
+            if (videoHistory.length > 1) {
+                historySection.style.display = 'block';
+            }
+
+            historyList.innerHTML = ''; // Clear current list
+
+            // Loop through history backwards to show newest first
+            for (let i = videoHistory.length - 1; i >= 0; i--) {
+                const id = videoHistory[i];
+                
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.title = "Click to watch again";
+                
+                // Clicking a history item reloads it into the player
+                item.onclick = () => {
+                    urlInput.value = `https://youtube.com/watch?v=${id}`;
+                    submitBtn.click();
+                    // Scroll back to top to see the video
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+                
+                // Fetch the YouTube thumbnail directly
+                const img = document.createElement('img');
+                img.src = `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+                img.alt = `Thumbnail for ${id}`;
+                
+                item.appendChild(img);
+                historyList.appendChild(item);
+            }
         }
 
         submitBtn.addEventListener('click', () => {
@@ -201,25 +302,28 @@
             const videoID = extractYouTubeID(link);
 
             if (videoID) {
-                // Hide errors and instructions
                 errorMsg.style.display = 'none';
                 if (instructions) instructions.style.display = 'none';
                 
-                // Show container and set src
                 videoContainer.style.display = 'block';
                 const nocookieBase = "https://www.youtube-nocookie.com/embed/";
                 const params = "?wmode=transparent&iv_load_policy=3&autoplay=1&html5=1&showinfo=0&rel=0&modestbranding=1&playsinline=1";
                 
-                videoFrame.src = nocookieBase + videoID + params;
+                // Only update and load if it's a new video to prevent unnecessary refreshing
+                if (videoFrame.src.indexOf(videoID) === -1) {
+                    videoFrame.src = nocookieBase + videoID + params;
+                    
+                    // Add to history (remove if it already exists to move it to the front)
+                    videoHistory = videoHistory.filter(item => item !== videoID);
+                    videoHistory.push(videoID);
+                    
+                    updateHistoryUI();
+                }
             } else {
-                // Show error if the regex couldn't find an ID
                 errorMsg.style.display = 'block';
-                videoContainer.style.display = 'none';
-                videoFrame.src = "";
             }
         });
 
-        // Trigger submit when hitting "Enter" in the input field
         urlInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 submitBtn.click();
