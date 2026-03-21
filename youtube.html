@@ -1,100 +1,231 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CL G#mes Youtube</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
-
+        /* --- Base Styling --- */
         * {
+            box-sizing: border-box;
             font-family: "Roboto", sans-serif;
-        }
-
-        center {
-            display: block;
-            text-align: -webkit-center;
-        }
-
-        .title {
-            font-size: 60px;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            background-color: #202020;
-            color: darkgrey;
-            -webkit-text-stroke: 0.01px lightgrey;
+            /* Animated gradient background to make the glass effect pop */
+            background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
         }
-        
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* --- Glassmorphism Container --- */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        h3 {
+            font-weight: 400;
+            margin-bottom: 15px;
+            color: #d1d5db;
+        }
+
+        p {
+            color: #9ca3af;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+
+        /* --- Inputs & Buttons --- */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            min-width: 250px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #8b5cf6;
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        button {
+            padding: 15px 30px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        /* --- Error Message --- */
+        #error-msg {
+            color: #ef4444;
+            display: none;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        /* --- Iframe Container (16:9 Aspect Ratio) --- */
+        #video-container {
+            display: none; /* Hidden until valid link is submitted */
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-top: 20px;
+        }
+
         iframe {
-            width: 800px;
-            height: 450px;
-            max-width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
         }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 30px 0;
+        }
+
     </style>
 </head>
 <body>
-<center>
 
-    <h1 class="center">CL G#mes Youtube</h1>
-    <div class="center">
-        <h3>Insert YouTube Link:</h3>
-        <input id="url" type="text" placeholder="https://youtube.com/watch?v=..." required style="padding: 5px; width: 300px;">
-        <button id="submit" class="submit-button" style="padding: 6px 15px; cursor: pointer;">Watch</button>
-    </div>
-    <br>
-    
-    <div id="instructions" class="center">
-        <hr style="width:100% !important">
-        <h3>About</h3>
-        <p>Use to get around blocks, and watch YouTube without ads and (mostly) tracker free! Just paste in the link and click Watch!</p>
-        <h3>Not Working?</h3>
-        <p>Make sure there isn't anything funky at the end of the link, just the video ID! Forked by CLG</p>
-    </div>
+    <div class="glass-panel">
+        <h1>CL G#mes Youtube</h1>
+        
+        <div class="input-group">
+            <input id="url" type="text" placeholder="Paste YouTube link here..." required>
+            <button id="submit">Watch</button>
+        </div>
 
-    <div id="video-holder-holder">
-        <div id="video-holder" class="center" style="display:none;">
+        <div id="error-msg">Invalid YouTube link. Please try again.</div>
+
+        <div id="instructions">
             <hr>
-            <iframe id="video" src="" frameborder="0" scrolling="no" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>
+            <h3>About</h3>
+            <p>Use to get around blocks, and watch YouTube without ads and tracker-free. Just paste in the link and click Watch!</p>
+            <h3>How it works</h3>
+            <p>This tool automatically extracts the video ID and runs it through YouTube's privacy-enhanced, nocookie embed player. Forked by CLG.</p>
+        </div>
+
+        <div id="video-container">
+            <iframe id="video-frame" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </div>
     </div>
-    <hr class="space">
-
-    <footer class="center">
-        <br>
-        <hr>
-    </footer>
 
     <script>
-        const base = "https://www.youtube-nocookie.com/embed/";
-        const end = "?wmode=transparent&iv_load_policy=3&autoplay=0&html5=1&showinfo=0&rel=0&modestbranding=1&playsinline=0&theme=light";
-        const strip_timestamps = /\?t=\d+/;
-        
-        var submit = document.getElementById('submit');
-        var url = document.getElementById('url');
-        var video_holder_holder = document.getElementById('video-holder-holder');
-        
-        submit.onclick = () => {
-            // Remove instructions
-            if(document.getElementById('instructions')) {
-                document.getElementById('instructions').remove();
-            }
-            
-            let link = url.value;
-            // Clean the link to get just the ID
-            let id = link.replace(strip_timestamps, "");
-            id = id.substr(id.length - 11, 11);
-            
-            // Show the video player
-            let video_holder = document.getElementById('video-holder').cloneNode(true);
-            video_holder.style.display = 'block';
-            video_holder.querySelector('iframe').src = base + id + end;
-            
-            // Clear old videos if they click watch again
-            video_holder_holder.innerHTML = ''; 
-            video_holder_holder.appendChild(video_holder);
+        const submitBtn = document.getElementById('submit');
+        const urlInput = document.getElementById('url');
+        const instructions = document.getElementById('instructions');
+        const videoContainer = document.getElementById('video-container');
+        const videoFrame = document.getElementById('video-frame');
+        const errorMsg = document.getElementById('error-msg');
+
+        // Robust function to extract the 11-character YouTube ID from various URL structures
+        function extractYouTubeID(url) {
+            const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i;
+            const match = url.match(regExp);
+            return (match && match[1].length === 11) ? match[1] : null;
         }
+
+        submitBtn.addEventListener('click', () => {
+            const link = urlInput.value.trim();
+            const videoID = extractYouTubeID(link);
+
+            if (videoID) {
+                // Hide errors and instructions
+                errorMsg.style.display = 'none';
+                if (instructions) instructions.style.display = 'none';
+                
+                // Show container and set src
+                videoContainer.style.display = 'block';
+                const nocookieBase = "https://www.youtube-nocookie.com/embed/";
+                const params = "?wmode=transparent&iv_load_policy=3&autoplay=1&html5=1&showinfo=0&rel=0&modestbranding=1&playsinline=1";
+                
+                videoFrame.src = nocookieBase + videoID + params;
+            } else {
+                // Show error if the regex couldn't find an ID
+                errorMsg.style.display = 'block';
+                videoContainer.style.display = 'none';
+                videoFrame.src = "";
+            }
+        });
+
+        // Trigger submit when hitting "Enter" in the input field
+        urlInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                submitBtn.click();
+            }
+        });
     </script>
 
-</center>
 </body>
 </html>
