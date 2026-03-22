@@ -1,3 +1,7 @@
 [
-  { "name": "PeteZah", "url": "https://cdn.jsdelivr.net/gh/pineapple-petezah/homework/main.svg" }
+  { "name": "PeteZah", "url": "https://cdn.jsdelivr.net/gh/pineapple-petezah/homework/main.svg" },
+  { "name": "Lucide", "url": "https://storage.googleapis.com/lucide/index.html#/g" },
+  { "name": "gn-math", "url": "https://s3.amazonaws.com/prageru-server/mathematics.html" },
+  { "name": "Doge UB", "url": "https://s3.amazonaws.com/deltamath-demo/index.html" }
+  { "name": "Rift", "url": "https://frogieprojection.firebaseapp.com" }
 ]
