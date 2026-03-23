@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>CLG Sound Board</title>
+    <style>
+        /* ==========================================
+           GLOBAL & ANIMATIONS
+           ========================================== */
+        :root {
+            --primary-color: #8b5cf6;
+            --primary-glow: rgba(139, 92, 246, 0.5);
+            --danger-color: #ef4444;
+            --bg-gradient: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e, #2e0854, #0f0c29);
+            --transition-speed: 0.3s;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-gradient);
+            background-size: 400% 400%;
+            animation: gradientBG 20s ease infinite;
+            color: #ffffff;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.8;
+        }
+
+        @keyframes splashPulse {
+            0%, 100% { opacity: 0.8; transform: scale(1); text-shadow: 0 0 0px transparent; }
+            50% { opacity: 1; transform: scale(1.03); color: #d8b4fe; text-shadow: 0 0 10px rgba(167, 139, 250, 0.6); }
+        }
+
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translateY(30px) scale(0.98); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ==========================================
+           SIDEBAR
+           ========================================== */
+        #sidebar {
+            width: 70px;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 4px 0 30px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            padding-top: 20px;
+        }
+
+        .sidebar-btn {
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            color: #fff;
+            border-radius: 12px;
+            margin: 4px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 42px;
+            height: 42px;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+            cursor: default;
+        }
+
+        #main-content {
+            flex-grow: 1;
+            padding: 40px 60px;
+            overflow-y: auto;
+            position: relative;
+            scroll-behavior: smooth;
+            z-index: 5;
+        }
+
+        #main-content::-webkit-scrollbar { width: 10px; }
+        #main-content::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
+        #main-content::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 52px;
+            margin: 0;
+            font-weight: 900;
+            letter-spacing: -2px;
+            background: linear-gradient(to right, #ffffff, #c4b5fd, #8b5cf6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 12px rgba(139, 92, 246, 0.3));
+        }
+
+        #splash-text {
+            color: #a78bfa;
+            margin-top: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            display: inline-block;
+            transform-origin: left center;
+        }
+
+        /* ==========================================
+           CONTROLS: SEARCH & STOP ALL
+           ========================================== */
+        .controls-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 40px;
+            animation: slideUpFade 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            align-items: center;
+        }
+
+        .search-input {
+            flex-grow: 1;
+            max-width: 500px;
+            padding: 16px 24px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            font-size: 16px;
+            outline: none;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .search-input:focus {
+            border-color: #a78bfa;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .stop-btn {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            padding: 16px 24px;
+            border-radius: 16px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stop-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.8);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .stop-btn:active {
+            transform: scale(0.95);
+        }
+
+        .category-header {
+            font-size: 26px;
+            font-weight: 800;
+            color: #c4b5fd;
+            margin: 10px 0 30px;
+            border-bottom: 2px solid rgba(167, 139, 250, 0.15);
+            padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            letter-spacing: -0.5px;
+            animation: slideUpFade 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* ==========================================
+           TINTED GLASS CARDS & APPLE TIMER
+           ========================================== */
+        .sounds-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 20px;
+            padding-bottom: 40px;
+            animation: slideUpFade 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .sound-card {
+            /* The specific color haze will be injected via JS */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 25px 15px;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            text-align: center;
+            user-select: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sound-card:hover {
+            transform: translateY(-6px) scale(1.03);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 20px 40px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .sound-card:active {
+            transform: scale(0.95);
+        }
+
+        /* The Timer Container */
+        .play-container {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* SVG Circular Progress */
+        .progress-ring {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg); /* Start at the top */
+        }
+
+        .progress-ring__track {
+            stroke: rgba(255, 255, 255, 0.1);
+            fill: transparent;
+            stroke-width: 4;
+            r: 26;
+            cx: 30;
+            cy: 30;
+        }
+
+        .progress-ring__circle {
+            stroke: #fff;
+            fill: transparent;
+            stroke-width: 4;
+            stroke-linecap: round;
+            r: 26;
+            cx: 30;
+            cy: 30;
+            /* Circumference = 2 * pi * r = 2 * 3.14159 * 26 = 163.36 */
+            stroke-dasharray: 163.36 163.36;
+            stroke-dashoffset: 163.36; /* Hidden by default */
+            transition: stroke-dashoffset 0.05s linear;
+        }
+
+        /* Center Play Icon */
+        .play-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+            transition: all 0.2s;
+        }
+
+        .sound-card:hover .play-icon {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .play-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: #fff;
+            margin-left: 3px; /* visual center adjustment */
+        }
+
+        .sound-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.9);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            z-index: 2;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+    </style>
+</head>
+
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div id="sidebar">
+        <div class="sidebar-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="20" height="20" stroke-width="2.5">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <header>
+            <div>
+                <h1>CLG Sound Board</h1>
+                <p id="splash-text">Loading absolute chaos...</p>
+            </div>
+        </header>
+
+        <div class="controls-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="Search for a meme sound..." onkeyup="filterSounds()">
+            <button class="stop-btn" onclick="stopAllSounds()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>
+                Stop All
+            </button>
+        </div>
+
+        <div class="category-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="28" height="28" stroke-width="2.5">
+                <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+            </svg>
+            Master Archive
+        </div>
+
+        <div class="sounds-grid" id="soundGrid">
+            </div>
+
+    </div>
+
+    <script>
+        const allSounds = [
+            "https://www.myinstants.com/media/sounds/fahhhhhhhhhhhhhh.mp3", "https://www.myinstants.com/media/sounds/vine-boom.mp3",
+            "https://www.myinstants.com/media/sounds/rizz-sound-effect.mp3", "https://www.myinstants.com/media/sounds/dry-fart.mp3",
+            "https://www.myinstants.com/media/sounds/among-us-role-reveal-sound.mp3", "https://www.myinstants.com/media/sounds/anime-wow-sound-effect.mp3",
+            "https://www.myinstants.com/media/sounds/ive-got-this-faaaaaaaaahhhhh.mp3", "https://www.myinstants.com/media/sounds/spongebob-fail.mp3",
+            "https://www.myinstants.com/media/sounds/bone-crack.mp3", "https://www.myinstants.com/media/sounds/what-a-good-boy.mp3",
+            "https://www.myinstants.com/media/sounds/we-are-charlie-kirk-phone.mp3", "https://www.myinstants.com/media/sounds/perfect-fart.mp3",
+            "https://www.myinstants.com/media/sounds/ack.mp3", "https://www.myinstants.com/media/sounds/zvuk-fotoapparata.mp3",
+            "https://www.myinstants.com/media/sounds/metal-pipe-clang.mp3", "https://www.myinstants.com/media/sounds/rip-my-granny-loud-asf.mp3",
+            "https://www.myinstants.com/media/sounds/dun-dun-dun-sound-effect-brass_8nFBccR.mp3", "https://www.myinstants.com/media/sounds/romanceeeeeeeeeeeeee.mp3",
+            "https://www.myinstants.com/media/sounds/yeah-boiii-i-i-i.mp3", "https://www.myinstants.com/media/sounds/hub-intro-sound.mp3",
+            "https://www.myinstants.com/media/sounds/im-bout-to-cuhhhh.mp3", "https://www.myinstants.com/media/sounds/what-is-this-diddy-blud-doing-on-the.mp3",
+            "https://www.myinstants.com/media/sounds/galaxy-meme.mp3", "https://www.myinstants.com/media/sounds/i-am-going-to-commit-great-crime.mp3",
+            "https://www.myinstants.com/media/sounds/error_CDOxCYm.mp3", "https://www.myinstants.com/media/sounds/taco-bell-bong-sfx.mp3",
+            "https://www.myinstants.com/media/sounds/tmp_7901-951678082.mp3", "https://www.myinstants.com/media/sounds/undertakers-bell_2UwFCIe.mp3",
+            "https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3", "https://www.myinstants.com/media/sounds/fahhhhhhhh-earrape.mp3",
+            "https://www.myinstants.com/media/sounds/discord-notification.mp3", "https://www.myinstants.com/media/sounds/daddyy-chill.mp3",
+            "https://www.myinstants.com/media/sounds/a-few-moments-later-sponge-bob-sfx-fun.mp3", "https://www.myinstants.com/media/sounds/crazy-realistic-knocking-sound-troll-twitch-streamers_small.mp3",
+            "https://www.myinstants.com/media/sounds/censor-beep-1.mp3", "https://www.myinstants.com/media/sounds/rehehehe.mp3",
+            "https://www.myinstants.com/media/sounds/mlg-airhorn.mp3", "https://www.myinstants.com/media/sounds/fart-meme-sound.mp3",
+            "https://www.myinstants.com/media/sounds/nuclear-diarrhea.mp3", "https://www.myinstants.com/media/sounds/punch-gaming-sound-effect-hd_RzlG1GE.mp3",
+            "https://www.myinstants.com/media/sounds/enrique.mp3", "https://www.myinstants.com/media/sounds/indian-ringtone-mp3.mp3",
+            "https://www.myinstants.com/media/sounds/999-social-credit-siren.mp3", "https://www.myinstants.com/media/sounds/gopgopgop.mp3",
+            "https://www.myinstants.com/media/sounds/pluh.mp3", "https://www.myinstants.com/media/sounds/wcgertcz074.mp3",
+            "https://www.myinstants.com/media/sounds/anderdingus.mp3", "https://www.myinstants.com/media/sounds/the-weeknd-rizzz.mp3",
+            "https://www.myinstants.com/media/sounds/fahhhhhhhhhhhhhhh.mp3", "https://www.myinstants.com/media/sounds/diddy-done.mp3",
+            "https://www.myinstants.com/media/sounds/yippeeeeeeeeeeeeee.mp3", "https://www.myinstants.com/media/sounds/pookie-bear.mp3",
+            "https://www.myinstants.com/media/sounds/maro-jump-sound-effect_1.mp3", "https://www.myinstants.com/media/sounds/discord-call-sound.mp3",
+            "https://www.myinstants.com/media/sounds/low-honor-rdr-2.mp3", "https://www.myinstants.com/media/sounds/studio-audience-awwww-sound-fx.mp3",
+            "https://www.myinstants.com/media/sounds/another-one_dPvHt2Z.mp3", "https://www.myinstants.com/media/sounds/daddys-home.mp3",
+            "https://www.myinstants.com/media/sounds/fart-with-extra-reverb.mp3", "https://www.myinstants.com/media/sounds/funny-sound-that-will-make-you-to-laugh_1.mp3",
+            "https://www.myinstants.com/media/sounds/bruh-sound-effect_WstdzdM.mp3", "https://www.myinstants.com/media/sounds/jixaw-metal-pipe-falling-sound.mp3",
+            "https://www.myinstants.com/media/sounds/huh_37bAoRo.mp3", "https://www.myinstants.com/media/sounds/you-are-an-idiot.mp3",
+            "https://www.myinstants.com/media/sounds/discord-leave-noise.mp3", "https://www.myinstants.com/media/sounds/man-snoring-meme_ctrllNn.mp3",
+            "https://www.myinstants.com/media/sounds/zvuk-litvina.mp3", "https://www.myinstants.com/media/sounds/mac-quack.mp3",
+            "https://www.myinstants.com/media/sounds/clap-button_nzyOavZ.mp3", "https://www.myinstants.com/media/sounds/dog-clicker_IygBqAk.mp3",
+            "https://www.myinstants.com/media/sounds/sybau.mp3", "https://www.myinstants.com/media/sounds/500-cigarettes-tiktok-version.mp3",
+            "https://www.myinstants.com/media/sounds/money-soundfx.mp3", "https://www.myinstants.com/media/sounds/where-are-you-goingg.mp3",
+            "https://www.myinstants.com/media/sounds/loading-lost-connection-green-screen-with-sound-effect-2_K8HORkT.mp3", "https://www.myinstants.com/media/sounds/camera-flash-sound-effect.mp3",
+            "https://www.myinstants.com/media/sounds/slap-soundmaster13-49669815_4L20wGP.mp3", "https://www.myinstants.com/media/sounds/downer_noise.mp3",
+            "https://www.myinstants.com/media/sounds/brain-fart-slowed.mp3", "https://www.myinstants.com/media/sounds/brother-ewwwwwww.mp3",
+            "https://www.myinstants.com/media/sounds/heavenly-music-gaming-sound-effect-hd-mp3cut.mp3", "https://www.myinstants.com/media/sounds/green-giant-no-ho-ho-ho.mp3",
+            "https://www.myinstants.com/media/sounds/mouse-click-sound.mp3", "https://www.myinstants.com/media/sounds/bonk_7zPAD7C.mp3",
+            "https://www.myinstants.com/media/sounds/lizzard-1.mp3", "https://www.myinstants.com/media/sounds/crowd_small_chil_ec049202_9klCwI6.mp3",
+            "https://www.myinstants.com/media/sounds/ngakak-laugh-annoying.mp3", "https://www.myinstants.com/media/sounds/ekh.mp3",
+            "https://www.myinstants.com/media/sounds/smoke-alarm-beep.mp3", "https://www.myinstants.com/media/sounds/fuuuuh.mp3",
+            "https://www.myinstants.com/media/sounds/stupid-f__king-bird.mp3", "https://www.myinstants.com/media/sounds/flap-jack-scream.mp3",
+            "https://www.myinstants.com/media/sounds/meow-1.mp3", "https://www.myinstants.com/media/sounds/gunshot-one.mp3",
+            "https://www.myinstants.com/media/sounds/obi-wan-hello-there.mp3", "https://www.myinstants.com/media/sounds/chalo.mp3",
+            "https://www.myinstants.com/media/sounds/the-rock-shut-up.mp3", "https://www.myinstants.com/media/sounds/minecraft_click.mp3",
+            "https://www.myinstants.com/media/sounds/popular-riser-metallic-sound-effect.mp3", "https://www.myinstants.com/media/sounds/loud-explosion.mp3",
+            "https://www.myinstants.com/media/sounds/mike-tomlin-we-do-not-care-trim.mp3", "https://www.myinstants.com/media/sounds/fnaf-2-hallway-ambience.mp3",
+            "https://www.myinstants.com/media/sounds/huh-cat.mp3", "https://www.myinstants.com/media/sounds/mwahahaha.mp3",
+            "https://www.myinstants.com/media/sounds/clown-circus-music.mp3", "https://www.myinstants.com/media/sounds/tmpcoj3v_01.mp3",
+            "https://www.myinstants.com/media/sounds/nuclear-alarm-siren.mp3", "https://www.myinstants.com/media/sounds/metal-gear-alert-sound-effect_XKoHReZ.mp3"
+        ];
+
+        const uniqueSounds = [...new Set(allSounds)];
+        let activeAudios = []; // Keep track of all playing sounds
+
+        function formatName(url) {
+            let name = url.split('/').pop().replace('.mp3', '').replace(/[-_]/g, ' ');
+            name = name.replace(/[^a-zA-Z0-9 ]/g, ''); 
+            if(name.length > 20) name = name.substring(0, 20) + '...';
+            return name;
+        }
+
+        // Generate a random subtle tinted glass background
+        function getRandomHaze() {
+            const hue = Math.floor(Math.random() * 360);
+            return `linear-gradient(135deg, hsla(${hue}, 70%, 60%, 0.08), hsla(${hue}, 70%, 40%, 0.02))`;
+        }
+
+        function renderButtons() {
+            const grid = document.getElementById('soundGrid');
+            grid.innerHTML = "";
+            uniqueSounds.forEach((url, index) => {
+                let name = formatName(url);
+                let haze = getRandomHaze();
+                let circleId = `circle-${index}`;
+                
+                let card = document.createElement('div');
+                card.className = 'sound-card';
+                card.style.background = haze;
+                card.setAttribute('data-name', name.toLowerCase());
+                card.onclick = () => playSound(url, circleId);
+                
+                // SVG Circle Circumference is 163.36 (2 * pi * 26)
+                card.innerHTML = `
+                    <div class="play-container">
+                        <svg class="progress-ring" width="60" height="60">
+                            <circle class="progress-ring__track"></circle>
+                            <circle class="progress-ring__circle" id="${circleId}"></circle>
+                        </svg>
+                        <div class="play-icon">
+                            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        </div>
+                    </div>
+                    <div class="sound-label">${name}</div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // Play Sound and Handle Timer Animation
+        function playSound(url, circleId) {
+            const audio = new Audio(url);
+            const circle = document.getElementById(circleId);
+            const circumference = 163.36;
+            
+            // Add to active sounds list so we can stop it later
+            activeAudios.push({ audio, circle });
+
+            audio.play().catch(err => console.log("User must interact first!", err));
+
+            // Update the Apple Timer border
+            audio.addEventListener('timeupdate', () => {
+                if (!isNaN(audio.duration)) {
+                    const percent = audio.currentTime / audio.duration;
+                    const offset = circumference - (percent * circumference);
+                    circle.style.strokeDashoffset = offset;
+                }
+            });
+
+            // Reset Timer when finished
+            audio.addEventListener('ended', () => {
+                circle.style.strokeDashoffset = circumference;
+                // Remove from active list
+                activeAudios = activeAudios.filter(a => a.audio !== audio);
+            });
+        }
+
+        // Stop All Sounds Globally
+        function stopAllSounds() {
+            activeAudios.forEach(item => {
+                item.audio.pause();
+                item.audio.currentTime = 0;
+                item.circle.style.strokeDashoffset = 163.36; // Reset ring
+            });
+            activeAudios = []; // Clear the list
+        }
+
+        // Search Filter
+        function filterSounds() {
+            let input = document.getElementById('searchInput').value.toLowerCase();
+            let items = document.getElementsByClassName('sound-card');
+            
+            for (let i = 0; i < items.length; i++) {
+                let name = items[i].getAttribute('data-name');
+                if (name.includes(input)) {
+                    items[i].style.display = "flex";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
+        }
+
+        // ==========================================
+        // INTERACTIVE PARTICLE NETWORK BACKGROUND
+        // ==========================================
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let mouse = { x: -1000, y: -1000 };
+        let targetMouse = { x: -1000, y: -1000 };
+        let particles = [];
+
+        function initParticles() {
+            particles = [];
+            const numParticles = Math.floor((canvas.width * canvas.height) / 12000);
+            for (let i = 0; i < numParticles; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.7,
+                    vy: (Math.random() - 0.5) * 0.7,
+                    baseRadius: Math.random() * 1.5 + 0.8
+                });
+            }
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initParticles();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        window.addEventListener('mousemove', (e) => {
+            targetMouse.x = e.clientX;
+            targetMouse.y = e.clientY;
+        });
+        window.addEventListener('mouseout', () => {
+            targetMouse.x = -1000;
+            targetMouse.y = -1000;
+        });
+
+        function drawParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            mouse.x += (targetMouse.x - mouse.x) * 0.05;
+            mouse.y += (targetMouse.y - mouse.y) * 0.05;
+
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                let dx = mouse.x - p.x;
+                let dy = mouse.y - p.y;
+                let distToMouse = Math.sqrt(dx * dx + dy * dy);
+                let radius = p.baseRadius;
+                let opacity = 0.15;
+
+                if (distToMouse < 220) {
+                    const intensity = 1 - (distToMouse / 220);
+                    radius += intensity * 3;
+                    opacity += intensity * 0.7;
+                    p.x -= dx * 0.015 * intensity;
+                    p.y -= dy * 0.015 * intensity;
+                }
+
+                for (let j = i + 1; j < particles.length; j++) {
+                    let p2 = particles[j];
+                    let dx2 = p.x - p2.x;
+                    let dy2 = p.y - p2.y;
+                    let distToP2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+                    if (distToP2 < 100) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        let lineOpacity = (1 - distToP2 / 100) * 0.1;
+                        if (distToMouse < 220) lineOpacity += (1 - distToMouse / 220) * 0.25;
+                        ctx.strokeStyle = `rgba(167, 139, 250, ${lineOpacity})`;
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(167, 139, 250, ${opacity})`;
+                ctx.fill();
+            }
+            requestAnimationFrame(drawParticles);
+        }
+        drawParticles();
+
+        // ==========================================
+        // SPLASH TEXT ROTATION
+        // ==========================================
+        const splashes = [
+            "My code doesn't work and I don't know why.", "My code works and I don't know why.",
+            "Just block me already.", "We don't need no education...",
+            "Oops, I broke the school Wi-Fi.", "Ctrl+C, Ctrl+V: The ultimate coding pattern.",
+            "I'm not slacking, my code is compiling.", "It's not a bug, it's an undocumented feature.",
+            "I swear it worked on my machine.", "Refreshing this page won't fix your grades.",
+            "There are 10 types of people: those who understand binary, and those who don't.",
+            "Bypassing the firewall since 2023...", "Error 404: Motivation not found.",
+            "Sleep is for the weak, we have proxy servers.", "If teachers are reading this, hi!",
+            "This tab is definitely doing homework."
+        ];
+        
+        const splashEl = document.getElementById('splash-text');
+        splashEl.textContent = splashes[Math.floor(Math.random() * splashes.length)];
+
+        setInterval(() => {
+            splashEl.style.animation = 'none';
+            void splashEl.offsetWidth; 
+            splashEl.style.animation = 'splashPulse 4s infinite ease-in-out';
+            splashEl.textContent = splashes[Math.floor(Math.random() * splashes.length)];
+        }, 60000);
+
+        // Initialize UI
+        renderButtons();
+    </script>
+</body>
+
+</html>
