@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>CLG Files PRO</title>
+    <style>
+        /* ==========================================
+           GLOBAL & ANIMATIONS
+           ========================================== */
+        :root {
+            --primary-color: #8b5cf6;
+            --primary-glow: rgba(139, 92, 246, 0.5);
+            --danger-color: #ef4444;
+            --bg-gradient: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e, #2e0854, #0f0c29);
+            --transition-speed: 0.3s;
+        }
+        @keyframes gradientBG {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-gradient);
+            background-size: 400% 400%;
+            animation: gradientBG 20s ease infinite;
+            color: #ffffff;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow-y: hidden;
+            overflow-x: auto; /* Allow horizontal expansion scroll */
+            position: relative;
+        }
+
+        /* Interactive Background Canvas */
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.8;
+        }
+
+        .btn-active {
+            transform: scale(0.92) !important;
+            transition: transform 0.1s cubic-bezier(0.25, 1, 0.5, 1);
+            filter: brightness(1.3);
+        }
+
+        @keyframes dropSway {
+            0% {
+                transform: translate(-50%, -200%);
+                opacity: 0;
+            }
+
+            60% {
+                transform: translate(-50%, 40px);
+                opacity: 1;
+            }
+
+            80% {
+                transform: translate(-50%, 25px) rotate(1deg);
+            }
+
+            90% {
+                transform: translate(-50%, 32px) rotate(-1deg);
+            }
+
+            100% {
+                transform: translate(-50%, 30px) rotate(0deg);
+            }
+        }
+
+        @keyframes splashPulse {
+
+            0%,
+            100% {
+                opacity: 0.8;
+                transform: scale(1);
+                text-shadow: 0 0 0px transparent;
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.03);
+                color: #d8b4fe;
+                text-shadow: 0 0 10px rgba(167, 139, 250, 0.6);
+            }
+        }
+
+        @keyframes slideUpFade {
+            0% {
+                opacity: 0;
+                transform: translateY(30px) scale(0.98);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .app-section {
+            display: none;
+        }
+
+        .app-section.active {
+            display: block;
+            animation: slideUpFade 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        #admin-badge {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            vertical-align: middle;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(216, 180, 254, 0.05));
+            border: 1px solid rgba(167, 139, 250, 0.4);
+            color: #d8b4fe;
+            -webkit-text-fill-color: #d8b4fe;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 800;
+            margin-left: 15px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.3), inset 0 0 8px rgba(167, 139, 250, 0.1);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        #admin-logout-btn {
+            display: none;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            color: #fca5a5;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+            align-items: center;
+            gap: 6px;
+        }
+
+        #admin-logout-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* ==========================================
+           SIDEBAR
+           ========================================== */
+        #sidebar {
+            width: 80px;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 4px 0 30px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            overflow-y: auto;
+            padding-bottom: 20px;
+            padding-top: 20px;
+            gap: 10px;
+            /* Hide scrollbar for IE, Edge and Firefox */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        #sidebar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .sidebar-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid transparent;
+            color: #94a3b8;
+            padding: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-radius: 16px;
+            margin: 4px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 56px;
+            height: 56px;
+        }
+
+        .sidebar-btn:hover {
+            color: #fff;
+            background: rgba(139, 92, 246, 0.15);
+            border-color: rgba(139, 92, 246, 0.4);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4), inset 0 0 10px rgba(139, 92, 246, 0.2);
+            transform: translateY(-4px) scale(1.15);
+        }
+
+        .sidebar-btn.active-tab {
+            color: #fff;
+            background: rgba(139, 92, 246, 0.3);
+            border-color: #8b5cf6;
+            box-shadow: 0 0 25px rgba(139, 92, 246, 0.5);
+            transform: scale(1.1);
+        }
+
+        #main-content {
+            flex-grow: 1;
+            padding: 40px 60px;
+            overflow-y: auto;
+            position: relative;
+            scroll-behavior: smooth;
+        }
+
+        #main-content::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #main-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        #main-content::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        #main-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(139, 92, 246, 0.5);
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 52px;
+            margin: 0;
+            font-weight: 900;
+            letter-spacing: -2px;
+            background: linear-gradient(to right, #ffffff, #c4b5fd, #8b5cf6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 12px rgba(139, 92, 246, 0.3));
+        }
+
+        #splash-text {
+            color: #a78bfa;
+            margin-top: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            display: inline-block;
+            transform-origin: left center;
+        }
+
+        .pulse-anim {
+            animation: splashPulse 4s infinite ease-in-out;
+        }
+
+        /* ==========================================
+           WARNING GUIs & ADMIN
+           ========================================== */
+        .gui-popup {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, -200%);
+            width: 480px;
+            background: rgba(15, 10, 25, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            border-radius: 24px;
+            padding: 35px;
+            z-index: 10000;
+            text-align: center;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 50px rgba(239, 68, 68, 0.2);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .gui-popup.show {
+            animation: dropSway 0.8s forwards cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: auto;
+            opacity: 1;
+        }
+
+        .admin-popup {
+            border-color: rgba(139, 92, 246, 0.6);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 50px rgba(139, 92, 246, 0.2);
+            background: rgba(20, 15, 40, 0.9);
+        }
+
+        .admin-popup h2 {
+            color: #c4b5fd;
+            margin-top: 0;
+            font-size: 28px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            letter-spacing: -0.5px;
+            text-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
+        }
+
+        .gui-popup h2 {
+            color: #ef4444;
+            margin-top: 0;
+            font-size: 24px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .gui-popup p {
+            color: #cbd5e1;
+            font-size: 15px;
+            line-height: 1.7;
+            margin-bottom: 25px;
+        }
+
+        .admin-input {
+            width: 85%;
+            padding: 14px 18px;
+            margin: 10px 0;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .admin-input:focus {
+            border-color: #a78bfa;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.2);
+            transform: scale(1.02);
+        }
+
+        .warning-btns {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 25px;
+        }
+
+        .warn-btn {
+            padding: 14px 24px;
+            border-radius: 12px;
+            border: none;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .warn-confirm {
+            background: linear-gradient(135deg, var(--danger-color), #b91c1c);
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+            transition: all var(--transition-speed);
+        }
+
+        .warn-confirm:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.6);
+        }
+
+        .admin-confirm {
+            background: linear-gradient(135deg, var(--primary-color), #6d28d9);
+            color: white;
+            box-shadow: 0 4px 15px var(--primary-glow);
+            transition: all var(--transition-speed);
+        }
+
+        .admin-confirm:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.6);
+        }
+
+        .warn-cancel {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .warn-cancel:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-3px);
+        }
+
+        /* ==========================================
+           TOGGLE
+           ========================================== */
+        .toggle-container {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 12px 24px;
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s;
+        }
+
+        .toggle-container:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .switch {
+            position: relative;
+            width: 54px;
+            height: 28px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            transition: .4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-radius: 34px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 3px;
+            background: #fff;
+            transition: .4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        input:checked+.slider {
+            background: var(--primary-color);
+            border-color: #a78bfa;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(24px);
+            background: #ffffff;
+            box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* ==========================================
+           GRID & CARDS
+           ========================================== */
+        .category-header {
+            font-size: 26px;
+            font-weight: 800;
+            color: #c4b5fd;
+            margin: 10px 0 30px;
+            border-bottom: 2px solid rgba(167, 139, 250, 0.15);
+            padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .buttons-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            padding-bottom: 40px;
+        }
+
+        .game-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.15);
+            position: relative;
+            min-width: 480px;
+            width: max-content;
+            flex: 0 1 auto;
+        }
+
+        /* Shimmer overlay — self-contained so card needs no overflow:hidden */
+        .card-shimmer {
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .card-shimmer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.05), transparent);
+            transform: skewX(-20deg);
+            transition: 0.7s;
+        }
+
+        .game-card:hover .card-shimmer::before {
+            left: 150%;
+        }
+
+        .game-card:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            transform: translateY(-8px) scale(1.02);
+            border-color: rgba(167, 139, 250, 0.5);
+            box-shadow: 0 20px 40px 0 rgba(0, 0, 0, 0.4), 0 0 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .game-main-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 26px 24px;
+            font-size: 19px;
+            font-weight: 700;
+            text-align: left;
+            flex-grow: 1;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: color 0.3s, transform 0.3s;
+            z-index: 2;
+            position: relative;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .game-main-btn:hover {
+            color: #d8b4fe;
+            transform: translateX(5px);
+        }
+
+        .game-actions {
+            display: flex;
+            gap: 8px;
+            padding-right: 20px;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: flex-end;
+            z-index: 2;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .action-btn {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2.2;
+            transition: transform 0.3s;
+        }
+
+        .action-btn:hover:not(:disabled) {
+            background: var(--primary-color);
+            border-color: #a78bfa;
+            color: white;
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 8px 20px var(--primary-glow);
+        }
+
+        .action-btn:hover:not(:disabled) svg {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .action-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        #embed-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 20000;
+            display: none;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        #embed-modal.show {
+            opacity: 1;
+            display: flex;
+        }
+
+        #embed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 40px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #close-embed-btn {
+            background: #ef4444;
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 800;
+            letter-spacing: 1px;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+
+        #close-embed-btn:hover {
+            background: #dc2626;
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+        }
+
+        #embed-iframe {
+            flex-grow: 1;
+            border: none;
+            background: white;
+            border-radius: 0 0 10px 10px;
+            margin: 0 20px 20px 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .error-message {
+            text-align: center;
+            margin-top: 100px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 50px;
+            border-radius: 24px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            animation: slideUpFade 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .error-message h2 {
+            color: #ef4444;
+            margin-top: 0;
+            font-size: 28px;
+        }
+
+        .error-message p {
+            color: #e2e8f0;
+            line-height: 1.8;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div id="sidebar"></div>
+
+    <div id="warning-gui" class="gui-popup">
+        <h2>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            Enable Turbo?
+        </h2>
+        <p>Enabling Githack Turbo alters content delivery. This may cause instability or unexpected crashes on certain
+            networks. Proceed only if experiencing slow load times.</p>
+        <div class="warning-btns">
+            <button id="warn-confirm-btn" class="warn-btn warn-confirm">Enable Anyway</button>
+            <button id="warn-cancel-btn" class="warn-btn warn-cancel">Keep Secure</button>
+        </div>
+    </div>
+
+    <div id="youtube-gui" class="gui-popup">
+        <h2>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            Access Restricted
+        </h2>
+        <p>YouTube requires Githack Turbo to bypass domain security policies. Bypassing this warning with Turbo Off may
+            result in a blank screen or "Error 153".</p>
+        <div class="warning-btns">
+            <button id="yt-turbo-play-btn" class="warn-btn warn-confirm">Enable Turbo & Play</button>
+            <button id="yt-turbo-off-btn" class="warn-btn warn-cancel">Proceed with Turbo Off</button>
+            <button id="yt-cancel-btn" class="warn-btn warn-cancel">Cancel</button>
+        </div>
+    </div>
+
+    <div id="admin-gui" class="gui-popup admin-popup">
+        <h2>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            Admin Panel
+        </h2>
+        <p style="margin-bottom: 15px;">Enter your authorization code to unlock advanced raw functions.</p>
+        <input type="text" id="admin-user" class="admin-input" placeholder="Username" autocomplete="off">
+        <input type="password" id="admin-pass" class="admin-input" placeholder="Password">
+        <label style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; color: #cbd5e1; font-size: 14px; cursor: pointer;">
+            <input type="checkbox" id="admin-remember" style="accent-color: #8b5cf6; width: 16px; height: 16px; cursor: pointer;">
+            Remember Me
+        </label>
+        <p id="admin-error"
+            style="color: #ef4444; font-size: 14px; margin: 15px 0 0 0; display: none; font-weight: bold; background: rgba(239,68,68,0.1); padding: 8px; border-radius: 8px;">
+            Invalid Credentials</p>
+        <div class="warning-btns">
+            <button id="admin-confirm-btn" class="warn-btn admin-confirm">Unlock Features</button>
+            <button id="admin-cancel-btn" class="warn-btn warn-cancel">Cancel</button>
+        </div>
+    </div>
+
+    <div id="logout-gui" class="gui-popup">
+        <h2>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Confirm Logout
+        </h2>
+        <p>Are you sure you want to log out of Admin mode? This will disable advanced raw functions.</p>
+        <div class="warning-btns">
+            <button id="logout-confirm-btn" class="warn-btn warn-confirm">Log Out</button>
+            <button id="logout-cancel-btn" class="warn-btn warn-cancel">Cancel</button>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <header>
+            <div>
+                <h1>CLG Files PRO <span id="admin-badge">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                        ADMIN</span></h1>
+                <p id="splash-text">Environment: Secure Mode</p>
+            </div>
+
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <button id="admin-logout-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Logout
+                </button>
+                <div id="toggle-area" class="toggle-container">
+                    <span
+                        style="font-size: 14px; font-weight: 800; color: #c4b5fd; letter-spacing: 0.5px; text-transform: uppercase;">Githack
+                        Turbo</span>
+                    <label class="switch">
+                        <input type="checkbox" id="githack-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </header>
+
+        <div id="games-container">
+            <div id="loading-text"
+                style="text-align: center; margin-top: 80px; color: #a0aec0; font-size: 20px; font-weight: 600; animation: splashPulse 2s infinite;">
+                Initializing Database Connection...</div>
+        </div>
+
+        <div
+            style="text-align: center; margin-top: 50px; margin-bottom: 20px; color: rgba(255,255,255,0.15); font-size: 13px; font-weight: 600; letter-spacing: 0.5px;">
+            &copy; <span id="copyright-year"></span>
+            <script>document.getElementById('copyright-year').textContent = new Date().getFullYear();</script> CLG Files PRO. All rights reversed. (Not a
+            typo).<br>For Educational Purposes Only, Don't Do This at Home Kids.
+        </div>
+    </div>
+
+    <div id="embed-modal">
+        <div id="embed-header">
+            <span id="embed-title"
+                style="font-weight: 800; font-size: 20px; letter-spacing: 2px; color: #fff;">VIEWING</span>
+            <button id="close-embed-btn">CLOSE UI</button>
+        </div>
+        <iframe id="embed-iframe"></iframe>
+    </div>
+
+    <script>
+        const repoPath = "Liquified1000/CLG-Files/main/";
+        const githackUrl = "https://raw.githack.com/" + repoPath;
+        const rawUrl = "https://raw.githubusercontent.com/" + repoPath;
+
+        let isAdmin = false;
+
+        let gameFiles = [];
+        let siteFiles = [];
+
+        // Updated cooler icons
+        const iconStealth = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
+        const iconEmbed = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>`;
+        const iconGlobe = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="28" height="28" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>`;
+
+        // Grid App icon to replace the gamepad
+        const iconGrid = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="28" height="28" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>`;
+
+        const iconCopy = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+        const iconNormal = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
+
+        const toggle = document.getElementById('githack-toggle');
+        const warningGui = document.getElementById('warning-gui');
+        const youtubeGui = document.getElementById('youtube-gui');
+        const adminGui = document.getElementById('admin-gui');
+        const logoutGui = document.getElementById('logout-gui');
+        const toggleArea = document.getElementById('toggle-area');
+
+        let pendingYoutubeAction = null;
+
+        document.addEventListener('mousedown', (e) => {
+            const btn = e.target.closest('button');
+            if (btn) {
+                btn.classList.add('btn-active');
+                setTimeout(() => btn.classList.remove('btn-active'), 150);
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'y') {
+                e.preventDefault();
+                adminGui.classList.add('show');
+                document.getElementById('admin-user').focus();
+            }
+            if (e.key === 'Enter' && adminGui.classList.contains('show')) {
+                verifyAdmin();
+            }
+        });
+
+        function handleToggle(cb) {
+            if (cb.checked) {
+                toggleArea.style.pointerEvents = "none";
+                warningGui.classList.add('show');
+            }
+        }
+        function confirmEnable() { toggleArea.style.pointerEvents = "auto"; toggle.disabled = false; warningGui.classList.remove('show'); }
+        function cancelEnable() { toggleArea.style.pointerEvents = "auto"; toggle.disabled = false; toggle.checked = false; warningGui.classList.remove('show'); }
+
+        function closeYoutubeWarning() { youtubeGui.classList.remove('show'); toggleArea.style.pointerEvents = "auto"; pendingYoutubeAction = null; }
+        function enableAndPlayYoutube() { toggle.checked = true; const action = pendingYoutubeAction; closeYoutubeWarning(); if (action) action(); }
+        function proceedYoutubeRaw() { const action = pendingYoutubeAction; closeYoutubeWarning(); if (action) action(true); }
+
+        function verifyAdmin() {
+            const user = document.getElementById('admin-user').value;
+            const pass = document.getElementById('admin-pass').value;
+
+            if (btoa(user) === 'Q0xHIEFkbWlu' && btoa(pass) === 'MzMxMDEyMTMh') {
+                if (document.getElementById('admin-remember').checked) {
+                    try { localStorage.setItem('clg_admin_remember', 'true'); } catch (e) { console.warn("Local storage blocked", e); }
+                }
+                enableAdminMode();
+            } else {
+                document.getElementById('admin-error').style.display = 'block';
+            }
+        }
+
+        function enableAdminMode() {
+            isAdmin = true;
+            document.getElementById('admin-badge').style.display = 'inline-flex';
+            const logOutBtn = document.getElementById('admin-logout-btn');
+            if(logOutBtn) logOutBtn.style.display = 'flex';
+            
+            const splash = document.getElementById('splash-text');
+            splash.textContent = "Access Granted. Welcome back, Admin.";
+            splash.style.color = "#d8b4fe";
+            splash.style.textShadow = "0 0 15px rgba(167,139,250,0.8)";
+            closeAdmin();
+
+            // Keep the current active tab shown
+            const activeTab = document.querySelector('.app-section.active');
+            const activeId = activeTab ? activeTab.id : null;
+            buildPage();
+            if (activeId) showSection(activeId);
+        }
+
+        function showLogoutWarning() {
+            logoutGui.classList.add('show');
+        }
+
+        function cancelLogout() {
+            logoutGui.classList.remove('show');
+        }
+
+        function confirmLogout() {
+            isAdmin = false;
+            try { localStorage.removeItem('clg_admin_remember'); } catch (e) {}
+            document.getElementById('admin-badge').style.display = 'none';
+            const logOutBtn = document.getElementById('admin-logout-btn');
+            if(logOutBtn) logOutBtn.style.display = 'none';
+            
+            const splashEl = document.getElementById('splash-text');
+            splashEl.textContent = "Environment: Secure Mode";
+            splashEl.style.color = "#a78bfa";
+            splashEl.style.textShadow = "0 0 10px rgba(167, 139, 250, 0.6)";
+            
+            cancelLogout();
+            
+            // Rebuild page to remove admin buttons
+            const activeTab = document.querySelector('.app-section.active');
+            const activeId = activeTab ? activeTab.id : null;
+            buildPage();
+            if (activeId) showSection(activeId);
+        }
+
+        function closeAdmin() {
+            adminGui.classList.remove('show');
+            document.getElementById('admin-error').style.display = 'none';
+            document.getElementById('admin-user').value = '';
+            document.getElementById('admin-pass').value = '';
+            document.getElementById('admin-remember').checked = false;
+        }
+
+        function showSection(sectionId) {
+            // Un-highlight all sidebar buttons
+            document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active-tab'));
+
+            // Highlight the clicked button
+            const targetBtn = document.querySelector(`[data-target="${sectionId}"]`);
+            if (targetBtn) targetBtn.classList.add('active-tab');
+
+            // Hide all sections, show target
+            document.querySelectorAll('.app-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            const activeSec = document.getElementById(sectionId);
+            if (activeSec) {
+                activeSec.classList.add('active');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        async function getFinalUrl(fileName, bypassCheck = false) {
+            if (fileName.toLowerCase() === 'youtube' && !toggle.checked && !bypassCheck) {
+                toggleArea.style.pointerEvents = "none"; youtubeGui.classList.add('show'); return "WAITING";
+            }
+            const path = fileName + ".html";
+            if (toggle.checked) return githackUrl + path;
+            try {
+                const response = await fetch(rawUrl + path);
+                const code = await response.text();
+                return URL.createObjectURL(new Blob([code], { type: 'text/html' }));
+            } catch (e) { return rawUrl + path; }
+        }
+
+        async function openNormal(game, bypass = false) {
+            if (game.toLowerCase() === 'youtube' && !toggle.checked && !bypass) {
+                pendingYoutubeAction = (b) => openNormal(game, b); 
+                getFinalUrl(game, bypass); // Trigger GUI natively
+                return;
+            }
+            let newTab = window.open('about:blank', '_blank');
+            const url = await getFinalUrl(game, bypass);
+            if (url && url !== "WAITING") { 
+                newTab.location.href = url;
+            } else {
+                newTab.close();
+            }
+        }
+        async function openStealth(game, bypass = false) {
+            if (game.toLowerCase() === 'youtube' && !toggle.checked && !bypass) {
+                pendingYoutubeAction = (b) => openStealth(game, b); 
+                getFinalUrl(game, bypass);
+                return;
+            }
+            let newTab = window.open('about:blank', '_blank');
+            const url = await getFinalUrl(game, bypass);
+            if (url && url !== "WAITING") {
+                let iframe = newTab.document.createElement('iframe');
+                iframe.src = url; iframe.style.cssText = "width: 100vw; height: 100vh; border: none; position: absolute; top:0; left:0;";
+                newTab.document.body.style.margin = '0'; newTab.document.body.style.overflow = 'hidden'; newTab.document.body.appendChild(iframe);
+            } else {
+                newTab.close();
+            }
+        }
+        async function openEmbed(game, bypass = false) {
+            const url = await getFinalUrl(game, bypass);
+            if (url === "WAITING") { pendingYoutubeAction = (b) => openEmbed(game, b); return; }
+            if (!url) return;
+            document.getElementById('embed-iframe').src = url;
+            document.getElementById('embed-title').textContent = game.toUpperCase();
+            document.getElementById('embed-modal').classList.add('show');
+        }
+
+        async function copyGameRawText(game, event) {
+            const gameBtn = event.target.closest('button');
+            if (gameBtn.disabled) return;
+
+            const originalHtml = gameBtn.innerHTML;
+            gameBtn.disabled = true;
+            gameBtn.innerHTML = "Copying...";
+
+            try {
+                const path = game + ".html";
+                const response = await fetch(rawUrl + path);
+                const code = await response.text();
+                await navigator.clipboard.writeText(code);
+                gameBtn.innerHTML = "Copied!";
+                gameBtn.style.background = "#10b981";
+                gameBtn.style.borderColor = "#34d399";
+            } catch (e) {
+                gameBtn.innerHTML = "Failed!";
+                gameBtn.style.background = "#ef4444";
+            }
+            setTimeout(() => {
+                gameBtn.innerHTML = originalHtml;
+                gameBtn.disabled = false;
+                gameBtn.style.background = "";
+                gameBtn.style.borderColor = "";
+            }, 2000);
+        }
+
+        function openSiteMainStealth(url) {
+            let newTab = window.open('about:blank', '_blank');
+            let iframe = newTab.document.createElement('iframe');
+            iframe.src = url; iframe.style.cssText = "width: 100vw; height: 100vh; border: none; position: absolute; top:0; left:0;";
+            newTab.document.body.style.margin = '0'; newTab.document.body.style.overflow = 'hidden'; newTab.document.body.appendChild(iframe);
+        }
+        function openSiteEmbed(url, name) {
+            document.getElementById('embed-iframe').src = url;
+            document.getElementById('embed-title').textContent = name.toUpperCase();
+            document.getElementById('embed-modal').classList.add('show');
+        }
+        function openSiteNormalReal(url) {
+            window.open(url, '_blank');
+        }
+
+        function copySiteUrl(url, event) {
+            const copyBtn = event.target.closest('button');
+            if (copyBtn.disabled) return;
+
+            const originalHtml = copyBtn.innerHTML;
+            copyBtn.disabled = true;
+
+            navigator.clipboard.writeText(url).then(() => {
+                copyBtn.innerHTML = "Copied!";
+                copyBtn.style.background = "#10b981";
+                copyBtn.style.borderColor = "#34d399";
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalHtml;
+                    copyBtn.disabled = false;
+                    copyBtn.style.background = "";
+                    copyBtn.style.borderColor = "";
+                }, 2000);
+            }).catch(() => {
+                copyBtn.innerHTML = "Failed!";
+                copyBtn.style.background = "#ef4444";
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalHtml;
+                    copyBtn.disabled = false;
+                    copyBtn.style.background = "";
+                }, 2000);
+            });
+        }
+
+        function closeEmbed() {
+            const modal = document.getElementById('embed-modal');
+            modal.classList.remove('show');
+            setTimeout(() => { document.getElementById('embed-iframe').src = ''; }, 400); // delay clear until fade out
+        }
+
+        function createGameCardHTML(title, gameId) {
+            let html = `
+                <div class="game-card">
+                    <div class="card-shimmer"></div>
+                    <button class="game-main-btn" data-action="open-normal" data-game="${gameId}">${title}</button>
+                    <div class="game-actions">
+                        <button class="action-btn" data-action="open-stealth" data-game="${gameId}">
+                            ${iconStealth} Stealth
+                        </button>
+                        <button class="action-btn" data-action="open-embed" data-game="${gameId}">
+                            ${iconEmbed} Embed
+                        </button>
+            `;
+            if (isAdmin) {
+                html += `
+                        <button class="action-btn" style="border-color: #8b5cf6; color: #c4b5fd;" data-action="copy-raw" data-game="${gameId}">
+                            ${iconCopy} Copy Raw
+                        </button>
+                `;
+            }
+            html += `
+                    </div>
+                </div>
+            `;
+            return html;
+        }
+
+        function createSiteCardHTML(title, url) {
+            let html = `
+                <div class="game-card">
+                    <div class="card-shimmer"></div>
+                    <button class="game-main-btn" data-action="open-site-main" data-url="${url}">${title}</button>
+                    <div class="game-actions">
+                        <button class="action-btn" data-action="open-site-embed" data-url="${url}" data-title="${title}">
+                            ${iconEmbed} Embed
+                        </button>
+            `;
+            if (isAdmin) {
+                html += `
+                        <button class="action-btn" style="border-color: #8b5cf6; color: #c4b5fd;" data-action="open-site-normal" data-url="${url}">
+                            ${iconNormal} Normal
+                        </button>
+                        <button class="action-btn" style="border-color: #8b5cf6; color: #c4b5fd;" data-action="copy-site" data-url="${url}">
+                            ${iconCopy} Copy Link
+                        </button>
+                `;
+            }
+            html += `
+                    </div>
+                </div>
+            `;
+            return html;
+        }
+
+        function buildPage() {
+            const container = document.getElementById('games-container');
+            const sidebar = document.getElementById('sidebar');
+
+            if (gameFiles.length === 0 && siteFiles.length === 0) {
+                container.innerHTML = `
+            <div class="error-message">
+                        <h2>Connection Blocked</h2>
+                        <p>Your current Wi-Fi network is aggressively blocking GitHub's servers, preventing the Hub from reading your JSON files.<br><br><b>Workaround:</b> Try connecting to a different network, or host this HTML file on GitHub Pages instead of opening it directly.</p>
+                    </div>`;
+                sidebar.innerHTML = '';
+                return;
+            }
+
+            let firstId = null;
+            let containerHTML = '';
+            let sidebarHTML = '';
+
+            if (siteFiles.length > 0) {
+                firstId = firstId || 'section-websites';
+                sidebarHTML += `
+                <button class="sidebar-btn" title="Websites" data-target="section-websites">
+                    ${iconGlobe}
+                </button>`;
+
+                containerHTML += `
+                <div id="section-websites" class="app-section">
+                    <div class="category-header">${iconGlobe} Verified Websites</div>
+                    <div class="buttons-grid">
+                        ${siteFiles.map(site => createSiteCardHTML(site.name, site.url)).join('')}
+                    </div>
+                </div>`;
+            }
+
+            if (gameFiles.length > 0) {
+                firstId = firstId || 'section-apps';
+                sidebarHTML += `
+                <button class="sidebar-btn" title="Apps & Games" data-target="section-apps">
+                    ${iconGrid}
+                </button>`;
+
+                containerHTML += `
+                <div id="section-apps" class="app-section">
+                    <div class="category-header">${iconGrid} Application Archives</div>
+                    <div class="buttons-grid">
+                        ${gameFiles.slice().sort().map(game => {
+                            const title = String(game).replace(/[-_]/g, ' ');
+                            return createGameCardHTML(title, game);
+                        }).join('')}
+                    </div>
+                </div>`;
+            }
+
+            sidebar.innerHTML = sidebarHTML;
+            container.innerHTML = containerHTML;
+
+            // Show first tab by default if not already initialized
+            const activeNow = document.querySelector('.app-section.active');
+            if (!activeNow && firstId) {
+                showSection(firstId);
+            }
+        }
+
+        async function fetchWithFallback(filename) {
+            // Highly aggressive random-coded cache busting to guarantee users get real-time JSON updates from Github
+            const bust = Date.now() + Math.random().toString(36).substring(7);
+            const urls = [
+                `https://raw.githack.com/${repoPath}${filename}?t=${bust}`,
+                `https://cdn.jsdelivr.net/gh/Liquified1000/CLG-Files@main/${filename}?t=${bust}`,
+                `https://raw.githubusercontent.com/${repoPath}${filename}?t=${bust}`
+            ];
+
+            for (let url of urls) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 second timeout per fetch
+                    const response = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (response.ok) return await response.json();
+                } catch (e) {
+                    // This handles network drops and timeouts smoothly to skip to the next mirror
+                    console.log(`Timeout / Blocked: ${url}`);
+                }
+            }
+            return null; // Return null instead of [] so we know it truly panicked
+        }
+
+        async function fetchConfig() {
+            try {
+                let gamesRaw = await fetchWithFallback('itemlist.json');
+                let sitesRaw = await fetchWithFallback('sitelist.json');
+
+                // Bulletproof failsafes to guarantee the JSON objects exist and are arrays before creating the UI
+                gameFiles = Array.isArray(gamesRaw) ? gamesRaw : [];
+                siteFiles = Array.isArray(sitesRaw) ? sitesRaw.filter(s => s && s.name && s.url) : [];
+            } catch (e) {
+                gameFiles = [];
+                siteFiles = [];
+            }
+            buildPage();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+
+            // ==========================================
+            // INTERACTIVE PARTICLE NETWORK BACKGROUND
+            // ==========================================
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            let mouse = { x: -1000, y: -1000 };
+            let targetMouse = { x: -1000, y: -1000 };
+            let particles = [];
+
+            function initParticles() {
+                particles = [];
+                const numParticles = Math.floor((canvas.width * canvas.height) / 12000);
+                for (let i = 0; i < numParticles; i++) {
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 0.7,
+                        vy: (Math.random() - 0.5) * 0.7,
+                        baseRadius: Math.random() * 1.5 + 0.8
+                    });
+                }
+            }
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                initParticles();
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            window.addEventListener('mousemove', (e) => {
+                targetMouse.x = e.clientX;
+                targetMouse.y = e.clientY;
+            });
+            window.addEventListener('mouseout', () => {
+                targetMouse.x = -1000;
+                targetMouse.y = -1000;
+            });
+
+            function drawParticles() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                mouse.x += (targetMouse.x - mouse.x) * 0.05;
+                mouse.y += (targetMouse.y - mouse.y) * 0.05;
+
+                for (let i = 0; i < particles.length; i++) {
+                    let p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                    let dx = mouse.x - p.x;
+                    let dy = mouse.y - p.y;
+                    let distToMouse = Math.sqrt(dx * dx + dy * dy);
+                    let radius = p.baseRadius;
+                    let opacity = 0.15;
+
+                    if (distToMouse < 220) {
+                        const intensity = 1 - (distToMouse / 220);
+                        radius += intensity * 3;
+                        opacity += intensity * 0.7;
+                        p.x -= dx * 0.015 * intensity;
+                        p.y -= dy * 0.015 * intensity;
+                    }
+
+                    for (let j = i + 1; j < particles.length; j++) {
+                        let p2 = particles[j];
+                        let dx2 = p.x - p2.x;
+                        let dy2 = p.y - p2.y;
+                        let distToP2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+                        if (distToP2 < 100) {
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            let lineOpacity = (1 - distToP2 / 100) * 0.1;
+                            if (distToMouse < 220) lineOpacity += (1 - distToMouse / 220) * 0.25;
+                            ctx.strokeStyle = `rgba(167, 139, 250, ${lineOpacity})`;
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
+                        }
+                    }
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(167, 139, 250, ${opacity})`;
+                    ctx.fill();
+                }
+                requestAnimationFrame(drawParticles);
+            }
+            drawParticles();
+            // ==========================================
+
+            // Bind static components
+            document.getElementById('warn-confirm-btn').addEventListener('click', confirmEnable);
+            document.getElementById('warn-cancel-btn').addEventListener('click', cancelEnable);
+            document.getElementById('yt-turbo-play-btn').addEventListener('click', enableAndPlayYoutube);
+            document.getElementById('yt-turbo-off-btn').addEventListener('click', proceedYoutubeRaw);
+            document.getElementById('yt-cancel-btn').addEventListener('click', closeYoutubeWarning);
+            document.getElementById('admin-confirm-btn').addEventListener('click', verifyAdmin);
+            document.getElementById('admin-cancel-btn').addEventListener('click', closeAdmin);
+            document.getElementById('logout-confirm-btn').addEventListener('click', confirmLogout);
+            document.getElementById('logout-cancel-btn').addEventListener('click', cancelLogout);
+            
+            const adminLogOutBtn = document.getElementById('admin-logout-btn');
+            if (adminLogOutBtn) {
+                adminLogOutBtn.addEventListener('click', showLogoutWarning);
+            }
+            
+            document.getElementById('githack-toggle').addEventListener('change', function() { handleToggle(this); });
+            document.getElementById('close-embed-btn').addEventListener('click', closeEmbed);
+
+            // Bind dynamic sections container
+            document.getElementById('sidebar').addEventListener('click', (e) => {
+                const btn = e.target.closest('.sidebar-btn');
+                if (!btn) return;
+                showSection(btn.dataset.target);
+            });
+
+            document.getElementById('games-container').addEventListener('click', (e) => {
+                const btn = e.target.closest('.action-btn, .game-main-btn');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                const game = btn.dataset.game;
+                const url = btn.dataset.url;
+                const title = btn.dataset.title;
+
+                if (action === 'open-normal') openNormal(game);
+                else if (action === 'open-stealth') openStealth(game);
+                else if (action === 'open-embed') openEmbed(game);
+                else if (action === 'copy-raw') copyGameRawText(game, e);
+                else if (action === 'open-site-main') openSiteMainStealth(url);
+                else if (action === 'open-site-embed') openSiteEmbed(url, title);
+                else if (action === 'open-site-normal') openSiteNormalReal(url);
+                else if (action === 'copy-site') copySiteUrl(url, e);
+            });
+
+            try {
+                if (localStorage.getItem('clg_admin_remember') === 'true') {
+                    enableAdminMode();
+                }
+            } catch (e) {
+                console.warn("Storage access restricted", e);
+            }
+
+            const splashes = [
+                "My code doesn't work and I don't know why.",
+                "My code works and I don't know why.",
+                "Just block me already.",
+                "We don't need no education...",
+                "Oops, I broke the school Wi-Fi.",
+                "Ctrl+C, Ctrl+V: The ultimate coding pattern.",
+                "I'm not slacking, my code is compiling.",
+                "It's not a bug, it's an undocumented feature.",
+                "I swear it worked on my machine.",
+                "Refreshing this page won't fix your grades.",
+                "There are 10 types of people: those who understand binary, and those who don't.",
+                "Bypassing the firewall since 2023...",
+                "Error 404: Motivation not found.",
+                "Sleep is for the weak, we have proxy servers.",
+                "If teachers are reading this, hi!",
+                "This tab is definitely doing homework."
+            ];
+            const splashEl = document.getElementById('splash-text');
+
+            if (!isAdmin) {
+                splashEl.textContent = splashes[Math.floor(Math.random() * splashes.length)];
+            }
+
+            setInterval(() => {
+                splashEl.style.animation = 'none';
+                void splashEl.offsetWidth; // Trigger reflow to restart animation smoothly
+                splashEl.style.animation = 'splashPulse 4s infinite ease-in-out';
+                splashEl.textContent = splashes[Math.floor(Math.random() * splashes.length)];
+            }, 60000); // 1 minute (60,000 milliseconds)
+
+            fetchConfig();
+        });
+    </script>
+</body>
+
+</html>
