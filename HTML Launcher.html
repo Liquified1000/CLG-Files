@@ -435,18 +435,18 @@
                 window.open(blobUrl, '_blank');
             });
 
-            // 2. Stealth Launch (about:blank injection)
+            // 2. Stealth Launch (Modern Blob URL injection)
             btnLaunchStealth.addEventListener('click', () => {
                 const code = htmlInput.value;
                 if (!code.trim()) return alert('Please paste some code first!');
 
-                const win = window.open('about:blank', '_blank');
-                if (win) {
-                    win.document.open();
-                    win.document.write(code);
-                    win.document.close();
-                } else {
-                    alert('Popup blocked! Please allow popups to use the stealth launcher.');
+                // Refactored: Use Blob URL instead of document.write() on about:blank
+                // This is the modern, high-performance standard for isolated execution.
+                const blob = new Blob([code], { type: 'text/html' });
+                const blobUrl = URL.createObjectURL(blob);
+                const win = window.open(blobUrl, '_blank');
+                if (!win) {
+                    alert('Popup blocked!');
                 }
             });
 
