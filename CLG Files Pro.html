@@ -737,15 +737,121 @@
             font-size: 28px;
         }
 
-        .error-message p {
-            color: #e2e8f0;
-            line-height: 1.8;
-            font-size: 16px;
+        /* ==========================================
+           SECURE PIN SYSTEM
+           ========================================== */
+        #pin-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 5, 20, 0.4);
+            backdrop-filter: blur(50px);
+            -webkit-backdrop-filter: blur(50px);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .pin-modal {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 50px 60px;
+            border-radius: 30px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(139, 92, 246, 0.1);
+            animation: slideUpFade 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .pin-modal h2 {
+            font-size: 28px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+            background: linear-gradient(to right, #fff, #c4b5fd);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .pin-modal p {
+            color: #94a3b8;
+            font-size: 15px;
+            margin-bottom: 35px;
+        }
+
+        .pin-inputs {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .pin-box {
+            width: 65px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            font-size: 32px;
+            font-weight: 800;
+            color: #fff;
+            text-align: center;
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .pin-box:focus {
+            border-color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4), inset 0 2px 10px rgba(0, 0, 0, 0.4);
+            transform: scale(1.08) translateY(-4px);
+        }
+
+        .pin-box.error {
+            border-color: #ef4444;
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            50% { transform: translateX(8px); }
+            75% { transform: translateX(-8px); }
+        }
+
+        .shimmer-text {
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite linear;
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -100% 0; }
+            100% { background-position: 100% 0; }
         }
     </style>
 </head>
 
 <body>
+
+    <div id="pin-overlay">
+        <div class="pin-modal">
+            <h2>ENTER ACCESS PIN</h2>
+            <p>Please enter your 4-digit code to unlock the system.</p>
+            <div class="pin-inputs">
+                <input type="password" maxlength="1" class="pin-box" data-index="0">
+                <input type="password" maxlength="1" class="pin-box" data-index="1">
+                <input type="password" maxlength="1" class="pin-box" data-index="2">
+                <input type="password" maxlength="1" class="pin-box" data-index="3">
+            </div>
+            <div style="margin-top: 30px; opacity: 0.5; font-size: 12px; color: #a78bfa; letter-spacing: 2px;">SECURE UPLINK ENCRYPTED</div>
+        </div>
+    </div>
 
     <canvas id="bg-canvas"></canvas>
 
@@ -1501,6 +1607,69 @@
 
             fetchConfig();
         });
+        // ==========================================
+        // SECURE PIN LOGIC
+        // ==========================================
+        function _INIT_AUTH() {
+            const boxes = document.querySelectorAll('.pin-box');
+            const overlay = document.getElementById('pin-overlay');
+            
+            if (sessionStorage.getItem('_0x_SESSION_AUTH') === 'true') {
+                overlay.remove();
+                return;
+            }
+
+            boxes[0].focus();
+
+            boxes.forEach((box, idx) => {
+                box.addEventListener('input', (e) => {
+                    if (box.value.length === 1) {
+                        if (idx < 3) {
+                            boxes[idx + 1].focus();
+                        } else {
+                            // Validate
+                            _VALIDATE_PIN();
+                        }
+                    }
+                });
+
+                box.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && box.value === '' && idx > 0) {
+                        boxes[idx - 1].focus();
+                    }
+                });
+            });
+
+            async function _VALIDATE_PIN() {
+                const values = Array.from(boxes).map(b => parseInt(b.value));
+                
+                // Deep Obfuscation Logic
+                // PIN: 3, 3, 1, 0
+                // Check: x + 8y + 64z + 512w = 91
+                const _0x_v = values[0] + (values[1] << 3) + (values[2] << 6) + (values[3] << 9);
+                const _0x_MAGIC = 0x5B; // 91 in hex
+                
+                if (_0x_v === _0x_MAGIC) {
+                    sessionStorage.setItem('_0x_SESSION_AUTH', 'true');
+                    overlay.style.opacity = '0';
+                    overlay.style.pointerEvents = 'none';
+                    setTimeout(() => overlay.remove(), 800);
+                } else {
+                    // Fail
+                    boxes.forEach(b => {
+                        b.classList.add('error');
+                        b.value = '';
+                    });
+                    
+                    setTimeout(() => {
+                        boxes.forEach(b => b.classList.remove('error'));
+                        boxes[0].focus();
+                    }, 500);
+                }
+            }
+        }
+
+        window.addEventListener('load', _INIT_AUTH);
     </script>
 </body>
 
