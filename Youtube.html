@@ -15,21 +15,36 @@
         }
 
         body {
-            background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e);
+            background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e, #2e0854, #0f0c29);
             background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
+            animation: gradientBG 20s ease infinite;
             color: #ffffff;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+            overflow-x: hidden;
         }
 
         @keyframes gradientBG {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
+        }
+
+        /* The interactive particle background */
+        #bg-canvas { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            pointer-events: none; 
+            z-index: -1; 
+            opacity: 0.8; 
         }
 
         /* --- Glassmorphism Container --- */
@@ -47,12 +62,18 @@
             transition: all 0.3s ease;
         }
 
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 30px;
-            letter-spacing: 1px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        /* Soundboard glowing text effect */
+        h1 { 
+            font-size: 52px; 
+            margin: 0 0 30px 0; 
+            font-weight: 900; 
+            letter-spacing: -2px; 
+            background: linear-gradient(to right, #ffffff, #c4b5fd, #8b5cf6); 
+            -webkit-background-clip: text; 
+            background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            filter: drop-shadow(0 4px 12px rgba(139, 92, 246, 0.3)); 
+            text-align: center;
         }
 
         h3 {
@@ -93,6 +114,7 @@
         input[type="text"]:focus {
             border-color: #8b5cf6;
             background: rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
         }
 
         button {
@@ -119,10 +141,14 @@
 
         /* --- Error Message --- */
         #error-msg {
-            color: #ef4444;
+            color: #fca5a5;
             display: none;
             margin-bottom: 15px;
             font-weight: bold;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            padding: 10px;
+            border-radius: 8px;
         }
 
         /* --- Iframe Container (16:9 Aspect Ratio) --- */
@@ -214,6 +240,8 @@
     </style>
 </head>
 <body>
+
+    <canvas id="bg-canvas"></canvas>
 
     <div class="glass-panel">
         <h1>CL G#mes Youtube</h1>
@@ -329,7 +357,80 @@
                 submitBtn.click();
             }
         });
-    </script>
 
+        // --- PARTICLE BACKGROUND LOGIC ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let mouse = { x: -1000, y: -1000 }, targetMouse = { x: -1000, y: -1000 }, particles = [];
+        
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < Math.floor((canvas.width * canvas.height) / 12000); i++) {
+                particles.push({ 
+                    x: Math.random() * canvas.width, 
+                    y: Math.random() * canvas.height, 
+                    vx: (Math.random() - 0.5) * 0.7, 
+                    vy: (Math.random() - 0.5) * 0.7, 
+                    baseRadius: Math.random() * 1.5 + 0.8 
+                });
+            }
+        }
+        
+        function resizeCanvas() { 
+            canvas.width = window.innerWidth; 
+            canvas.height = window.innerHeight; 
+            initParticles(); 
+        }
+        
+        window.addEventListener('resize', resizeCanvas); 
+        resizeCanvas();
+        
+        window.addEventListener('mousemove', e => { targetMouse.x = e.clientX; targetMouse.y = e.clientY; });
+        window.addEventListener('mouseout', () => { targetMouse.x = -1000; targetMouse.y = -1000; });
+        
+        function drawParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            mouse.x += (targetMouse.x - mouse.x) * 0.05; 
+            mouse.y += (targetMouse.y - mouse.y) * 0.05;
+            
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i]; 
+                p.x += p.vx; 
+                p.y += p.vy;
+                
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1; 
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                
+                let dx = mouse.x - p.x, dy = mouse.y - p.y, dist = Math.sqrt(dx * dx + dy * dy), r = p.baseRadius, op = 0.15;
+                if (dist < 220) { 
+                    let int = 1 - (dist / 220); 
+                    r += int * 3; 
+                    op += int * 0.7; 
+                    p.x -= dx * 0.015 * int; 
+                    p.y -= dy * 0.015 * int; 
+                }
+                
+                for (let j = i + 1; j < particles.length; j++) {
+                    let p2 = particles[j], dx2 = p.x - p2.x, dy2 = p.y - p2.y, dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+                    if (dist2 < 100) {
+                        ctx.beginPath(); 
+                        ctx.moveTo(p.x, p.y); 
+                        ctx.lineTo(p2.x, p2.y);
+                        let lop = (1 - dist2 / 100) * 0.1; 
+                        if (dist < 220) lop += (1 - dist / 220) * 0.25;
+                        ctx.strokeStyle = `rgba(167, 139, 250, ${lop})`; 
+                        ctx.lineWidth = 1; 
+                        ctx.stroke();
+                    }
+                }
+                ctx.beginPath(); 
+                ctx.arc(p.x, p.y, r, 0, Math.PI * 2); 
+                ctx.fillStyle = `rgba(167, 139, 250, ${op})`; 
+                ctx.fill();
+            }
+            requestAnimationFrame(drawParticles);
+        }
+        drawParticles();
+    </script>
 </body>
 </html>
