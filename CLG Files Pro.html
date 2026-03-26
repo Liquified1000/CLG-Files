@@ -1284,33 +1284,51 @@
             } catch (e) { return rawUrl + path; }
         }
 
+        // Helper for Modern DOM Injection
+        function injectToTab(win, title, url) {
+            if (!win || !url) return;
+            win.document.title = title;
+            const body = win.document.body;
+            body.style.margin = '0';
+            body.style.padding = '0';
+            body.style.overflow = 'hidden';
+            body.style.background = '#000';
+
+            const iframe = win.document.createElement('iframe');
+            iframe.src = url;
+            iframe.style.cssText = "width: 100vw; height: 100vh; border: none; position: absolute; top: 0; left: 0; display: block;";
+            
+            // Clear body and append
+            body.innerHTML = '';
+            body.appendChild(iframe);
+        }
+
         async function openNormal(game, bypass = false) {
             if (game.toLowerCase() === 'youtube' && !toggle.checked && !bypass) {
                 pendingYoutubeAction = (b) => openNormal(game, b);
-                getFinalUrl(game, bypass); // Trigger GUI natively
+                youtubeGui.classList.add('show');
                 return;
             }
-            let newTab = window.open('about:blank', '_blank');
+            const newTab = window.open('about:blank', '_blank');
             const url = await getFinalUrl(game, bypass);
             if (url && url !== "WAITING") {
-                newTab.location.href = url;
-            } else {
+                injectToTab(newTab, game.toUpperCase().replace(/[-_]/g, ' '), url);
+            } else if (newTab) {
                 newTab.close();
             }
         }
+
         async function openStealth(game, bypass = false) {
             if (game.toLowerCase() === 'youtube' && !toggle.checked && !bypass) {
                 pendingYoutubeAction = (b) => openStealth(game, b);
-                getFinalUrl(game, bypass);
+                youtubeGui.classList.add('show');
                 return;
             }
-            let newTab = window.open('about:blank', '_blank');
+            const newTab = window.open('about:blank', '_blank');
             const url = await getFinalUrl(game, bypass);
             if (url && url !== "WAITING") {
-                let iframe = newTab.document.createElement('iframe');
-                iframe.src = url; iframe.style.cssText = "width: 100vw; height: 100vh; border: none; position: absolute; top:0; left:0;";
-                newTab.document.body.style.margin = '0'; newTab.document.body.style.overflow = 'hidden'; newTab.document.body.appendChild(iframe);
-            } else {
+                injectToTab(newTab, "CLG PRO - Stealth Mode", url);
+            } else if (newTab) {
                 newTab.close();
             }
         }
@@ -1401,7 +1419,7 @@
         }
 
         function createGameCardHTML(title, gameId) {
-            let html = `
+            return `
                 <div class="game-card">
                     <div class="card-shimmer"></div>
                     <button class="game-main-btn" data-action="open-normal" data-game="${gameId}">${title}</button>
@@ -1412,23 +1430,17 @@
                         <button class="action-btn" data-action="open-embed" data-game="${gameId}">
                             ${iconEmbed} Embed
                         </button>
-            `;
-            if (isAdmin) {
-                html += `
+                        ${isAdmin ? `
                         <button class="action-btn" style="border-color: #8b5cf6; color: #c4b5fd;" data-action="copy-raw" data-game="${gameId}">
                             ${iconCopy} Copy Raw
-                        </button>
-                `;
-            }
-            html += `
+                        </button>` : ''}
                     </div>
                 </div>
             `;
-            return html;
         }
 
         function createSiteCardHTML(title, url) {
-            let html = `
+            return `
                 <div class="game-card">
                     <div class="card-shimmer"></div>
                     <button class="game-main-btn" data-action="open-site-main" data-url="${url}">${title}</button>
@@ -1436,22 +1448,16 @@
                         <button class="action-btn" data-action="open-site-embed" data-url="${url}" data-title="${title}">
                             ${iconEmbed} Embed
                         </button>
-            `;
-            if (isAdmin) {
-                html += `
+                        ${isAdmin ? `
                         <button class="action-btn" style="border-color: #8b5cf6; color: #c4b5fd;" data-action="open-site-normal" data-url="${url}">
                             ${iconNormal} Normal
                         </button>
                         <button class="action-btn" style="border-color: #8b5cf6; color: #c4b5fd;" data-action="copy-site" data-url="${url}">
                             ${iconCopy} Copy Link
-                        </button>
-                `;
-            }
-            html += `
+                        </button>` : ''}
                     </div>
                 </div>
             `;
-            return html;
         }
 
         function buildPage() {
