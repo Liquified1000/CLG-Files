@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLG Chat - Premium LAN & Global</title>
+    <!-- PeerJS for LAN/P2P -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Firebase (Optional but supported) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --primary-glow: rgba(139, 92, 246, 0.4);
+            --bg-dark: #0f0c29;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text: #ffffff;
+            --text-dim: #94a3b8;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e, #2e0854, #0f0c29);
+            background-size: 400% 400%;
+            animation: gradientBG 20s ease infinite;
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #bg-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 1; opacity: 0.8;
+        }
+        
+        /* Glassmorphic Container */
+        .chat-container {
+            width: 95%;
+            max-width: 1400px;
+            height: 90vh;
+            background: var(--glass);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            display: flex;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+            background: rgba(0, 0, 0, 0.2);
+            border-top-left-radius: 24px;
+            border-bottom-left-radius: 24px;
+        }
+
+        .sidebar h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #fff, #c4b5fd);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .mode-toggle {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .mode-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .room-info {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 16px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .room-id-display {
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 8px;
+            margin-top: 5px;
+            word-break: break-all;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .copy-btn {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+
+        /* Main Chat Area */
+        .chat-main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+            min-width: 0;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-right: 10px;
+        }
+
+        /* Custom Scrollbar */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.received {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.08);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.sent {
+            align-self: flex-end;
+            background: var(--primary);
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .message-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .message .sender { font-size: 0.75rem; color: var(--text-dim); font-weight: 600; margin-bottom: 0px; }
+        .message.sent .sender { color: rgba(255, 255, 255, 0.8); }
+        .msg-actions { display: none; gap: 5px; transition: all 0.2s; }
+        .msg-actions.show-actions { display: flex; }
+        .action-icon {
+            cursor: pointer; font-size: 11px; color: #a78bfa; background: transparent; border: none; padding: 3px 6px; font-weight: bold;
+        }
+        .action-icon:hover { color: white; }
+        .action-icon.del:hover { color: #ef4444; }
+        
+        .message .content {
+            font-size: 0.95rem;
+            line-height: 1.4;
+            word-break: break-all;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 18px;
+            border: 1px solid var(--glass-border);
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            outline: none;
+            font-size: 0.95rem;
+            resize: none;
+            max-height: 120px;
+            min-height: 24px;
+            padding: 8px 0;
+            font-family: inherit;
+        }
+
+        .chat-input::-webkit-scrollbar { width: 4px; }
+        .chat-input::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+
+
+        .send-btn {
+            background: var(--primary);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+            margin-bottom: 2px;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+            background: #7c3aed;
+        }
+
+        /* Name Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(40px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 40px;
+            border-radius: 30px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            transform: translateY(0);
+            transition: transform 0.5s;
+        }
+
+        .modal-content h3 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .modal-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .modal-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+        }
+
+        .modal-btn:hover {
+            background: #7c3aed;
+        }
+
+        .hidden { display: none !important; opacity: 0; pointer-events: none; }
+
+        /* Admin & Tabs */
+        .admin-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 5, 20, 0.6); backdrop-filter: blur(20px);
+            z-index: 99999; display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.4s;
+        }
+        .admin-overlay.show { opacity: 1; pointer-events: auto; }
+        .admin-modal {
+            background: rgba(20, 15, 40, 0.9); border: 1px solid rgba(139, 92, 246, 0.6);
+            padding: 40px; border-radius: 24px; text-align: center;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(139, 92, 246, 0.2);
+            transform: translateY(20px); transition: transform 0.4s; width: 90%; max-width: 340px;
+        }
+        .admin-overlay.show .admin-modal { transform: translateY(0); }
+        .admin-input {
+            width: 100%; padding: 14px 18px; margin: 10px 0; border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.5);
+            color: white; outline: none; box-sizing: border-box; font-size: 1rem;
+            transition: all 0.3s;
+        }
+        .admin-input:focus { border-color: #a78bfa; box-shadow: 0 0 15px rgba(139, 92, 246, 0.3); transform: scale(1.02); }
+        
+        /* Removed duplicate message-header logic from here */
+        .action-icon {
+            cursor: pointer; font-size: 11px; color: #a78bfa; background: transparent; border: none; padding: 3px 6px; font-weight: bold;
+        }
+        .action-icon:hover { color: white; }
+        .action-icon.del:hover { color: #ef4444; }
+        
+        .peer-tabs { 
+            display: flex; overflow-x: auto; gap: 8px; padding-bottom: 8px; 
+            scrollbar-width: thin; scrollbar-color: rgba(139, 92, 246, 0.5) transparent; 
+        }
+        .peer-tabs::-webkit-scrollbar { height: 6px; }
+        .peer-tabs::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.5); border-radius: 10px; }
+        .peer-tab {
+            padding: 8px 16px; background: rgba(255, 255, 255, 0.05); border-radius: 12px;
+            font-size: 0.85rem; cursor: pointer; white-space: nowrap; border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-dim);
+            transition: all 0.3s;
+        }
+        .peer-tab:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
+        .peer-tab.active {
+            background: rgba(139, 92, 246, 0.2); border-color: var(--primary); color: white;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+        .peer-tab.admin-tab { border-color: #ef4444; }
+
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .chat-container { width: 100%; height: 100vh; border-radius: 0; border: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Name Modal -->
+    <div id="name-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Welcome to CLG Chat</h3>
+            <p style="color: var(--text-dim); margin-bottom: 25px;">Enter a name and password to join or register.</p>
+            <input type="text" id="name-input" class="modal-input" placeholder="Your Name..." autofocus>
+            <input type="password" id="pass-input" class="modal-input" placeholder="Password...">
+            <button id="join-btn" class="modal-btn">Sign In</button>
+            <p id="login-error" style="color: #ef4444; margin-top: 15px; display: none; font-size: 0.9rem; font-weight: bold;">Incorrect password.</p>
+        </div>
+    </div>
+
+    <!-- Admin Modal -->
+    <div id="admin-modal-ui" class="admin-overlay">
+        <div class="admin-modal">
+            <h2 style="color: #c4b5fd; margin-top: 0; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                ADMIN UPLINK
+            </h2>
+            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 25px;">Restricted Protocol</p>
+            <input type="text" id="admin-user" class="admin-input" placeholder="Username">
+            <input type="password" id="admin-pass" class="admin-input" placeholder="Password">
+            <button id="admin-login-btn" class="modal-btn" style="margin-top: 15px;">AUTHORIZE</button>
+            <p id="admin-error" style="color: #ef4444; font-size: 0.85rem; display: none; margin-top: 15px; font-weight: bold;">CREDENTIALS REJECTED</p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="chat-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2>CLG Chat</h2>
+            
+            <div class="mode-toggle">
+                <button id="mode-lan" class="mode-btn active">LAN / P2P</button>
+                <button id="mode-global" class="mode-btn">GLOBAL</button>
+            </div>
+
+            <div id="lan-info" class="room-info">
+                <p style="margin-top:0"><strong>Direct Mode</strong></p>
+                <p style="font-size: 0.8rem; color: var(--text-dim);">Share this ID for others to join you:</p>
+                <div class="room-id-display">
+                    <span id="my-peer-id">Connecting...</span>
+                    <button class="copy-btn" onclick="copyMyId()">Copy</button>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <p style="font-size: 0.8rem; color: var(--text-dim);">Join a friend's room:</p>
+                    <input type="text" id="join-peer-id" class="modal-input" style="padding: 8px; font-size: 0.8rem; margin-bottom: 10px;" placeholder="Paste ID here">
+                    <button id="connect-peer-btn" class="modal-btn" style="padding: 8px; font-size: 0.8rem;">Connect</button>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 5px;">Active Chats:</p>
+                    <div id="peer-tabs" class="peer-tabs">
+                        <!-- Tabs go here -->
+                        <div class="peer-tab" id="no-chats-tab" style="pointer-events: none; opacity: 0.5;">No active chats</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="global-info" class="room-info hidden">
+                <p style="margin-top:0"><strong>Global Mode</strong></p>
+                <p id="firebase-status" style="font-size: 0.8rem; color: var(--text-dim);">Firebase not configured. Check source code to add keys.</p>
+            </div>
+
+            <div style="margin-top: auto;">
+                <p style="font-size: 0.75rem; color: var(--text-dim);">Logged in as: <strong id="user-display-name">---</strong></p>
+                <button onclick="localStorage.clear(); location.reload();" class="mode-btn" style="width: 100%; text-align: left; padding: 0;">Logout</button>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-main">
+            <div id="chat-messages" class="chat-messages">
+                <!-- Messages will appear here -->
+            </div>
+
+            <div class="chat-input-area">
+                <textarea id="chat-msg-input" class="chat-input" placeholder="Type a message... (Shift+Enter for new line)" rows="1" maxlength="1000"></textarea>
+                <button id="send-btn" class="send-btn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIG & STATE ---
+        let myName = localStorage.getItem('clg_name') || "";
+        let peer = null;
+        let connections = {}; // { connId: conn }
+        let currentMode = 'lan'; 
+        let isAdmin = localStorage.getItem('clg_admin') === 'true';
+        let activePeerTab = null;
+        
+        // P2P Storage
+        const savedP2P = localStorage.getItem('clg_p2p_chats');
+        let p2pChats = savedP2P ? JSON.parse(savedP2P) : {};
+        let msgStoreGlobal = []; 
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDlDdTzi8tDr_zuKxfPo6ni3Yrntxkbo9E",
+            authDomain: "clg-chat67.firebaseapp.com",
+            projectId: "clg-chat67",
+            storageBucket: "clg-chat67.firebasestorage.app",
+            messagingSenderId: "757246953946",
+            appId: "1:757246953946:web:bc40ee469361fd36ac18e3",
+            measurementId: "G-D95TKQFE0D",
+            databaseURL: "https://clg-chat67-default-rtdb.firebaseio.com"
+        };
+        let fbApp = null, fbDb = null;
+
+        // --- UI ELEMENTS ---
+        const nameModal = document.getElementById('name-modal');
+        const nameInput = document.getElementById('name-input');
+        const passInput = document.getElementById('pass-input');
+        const joinBtn = document.getElementById('join-btn');
+        const loginErr = document.getElementById('login-error');
+        const chatMessages = document.getElementById('chat-messages');
+        const msgInput = document.getElementById('chat-msg-input');
+        const sendBtn = document.getElementById('send-btn');
+        const myPeerIdDisplay = document.getElementById('my-peer-id');
+        const peerTabsContainer = document.getElementById('peer-tabs');
+
+        const adminModalUI = document.getElementById('admin-modal-ui');
+        const adminUser = document.getElementById('admin-user');
+        const adminPass = document.getElementById('admin-pass');
+        const adminLoginBtn = document.getElementById('admin-login-btn');
+        const adminErr = document.getElementById('admin-error');
+
+        // --- CANVAS BACKGROUND (PARTICLE NETWORK) ---
+        const canvas = document.getElementById('bg-canvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            let mouse = { x: -1000, y: -1000 };
+            let targetMouse = { x: -1000, y: -1000 };
+            let particles = [];
+
+            function initParticles() {
+                particles = [];
+                const numParticles = Math.floor((canvas.width * canvas.height) / 12000);
+                for (let i = 0; i < numParticles; i++) {
+                    particles.push({
+                        x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 0.7, vy: (Math.random() - 0.5) * 0.7,
+                        baseRadius: Math.random() * 1.5 + 0.8
+                    });
+                }
+            }
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                initParticles();
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            window.addEventListener('mousemove', (e) => {
+                targetMouse.x = e.clientX;
+                targetMouse.y = e.clientY;
+            });
+            window.addEventListener('mouseout', () => {
+                targetMouse.x = -1000;
+                targetMouse.y = -1000;
+            });
+
+            function drawParticles() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                mouse.x += (targetMouse.x - mouse.x) * 0.05;
+                mouse.y += (targetMouse.y - mouse.y) * 0.05;
+
+                for (let i = 0; i < particles.length; i++) {
+                    let p = particles[i];
+                    p.x += p.vx; p.y += p.vy;
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                    let dx = mouse.x - p.x;
+                    let dy = mouse.y - p.y;
+                    let distToMouse = Math.sqrt(dx * dx + dy * dy);
+                    let radius = p.baseRadius;
+                    let opacity = 0.15;
+
+                    if (distToMouse < 220) {
+                        const intensity = 1 - (distToMouse / 220);
+                        radius += intensity * 3;
+                        opacity += intensity * 0.7;
+                        p.x -= dx * 0.015 * intensity;
+                        p.y -= dy * 0.015 * intensity;
+                    }
+
+                    for (let j = i + 1; j < particles.length; j++) {
+                        let p2 = particles[j];
+                        let dx2 = p.x - p2.x; let dy2 = p.y - p2.y;
+                        let distToP2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+                        if (distToP2 < 100) {
+                            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y);
+                            let lineOpacity = (1 - distToP2 / 100) * 0.1;
+                            if (distToMouse < 220) lineOpacity += (1 - distToMouse / 220) * 0.25;
+                            ctx.strokeStyle = `rgba(167, 139, 250, ${lineOpacity})`;
+                            ctx.lineWidth = 1; ctx.stroke();
+                        }
+                    }
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(167, 139, 250, ${opacity})`;
+                    ctx.fill();
+                }
+                requestAnimationFrame(drawParticles);
+            }
+            drawParticles();
+        }
+
+        // --- FIREBASE (GLOBAL) ---
+        function initFirebase() {
+            if (fbApp) return; 
+            try {
+                fbApp = firebase.initializeApp(firebaseConfig);
+                fbDb = firebase.database().ref('messages');
+            } catch (e) {
+                console.error("FB Init Fail", e);
+            }
+        }
+        // Initialize early for auth
+        initFirebase();
+
+        // --- AUTH & INITIALIZATION ---
+        if (isAdmin) updateAdminUI();
+        
+        if (myName) {
+            nameModal.classList.add('hidden');
+            document.getElementById('user-display-name').innerText = myName + (isAdmin ? ' (ADMIN)' : '');
+            initSystem();
+        }
+
+        joinBtn.onclick = () => {
+            const val = nameInput.value.trim();
+            const pwd = passInput.value.trim();
+            if (val && pwd) {
+                const b64 = btoa(pwd);
+                loginErr.style.display = 'none';
+                
+                if (!fbDb) {
+                    // Fallback if network blocked
+                    loginSuccess(val);
+                    return;
+                }
+                
+                firebase.database().ref('users/' + val).once('value', snap => {
+                    const u = snap.val();
+                    if (!u) {
+                        firebase.database().ref('users/' + val).set({ pass: b64 });
+                        loginSuccess(val);
+                    } else {
+                        if (u.pass === b64) {
+                            loginSuccess(val);
+                        } else {
+                            loginErr.style.display = 'block';
+                        }
+                    }
+                }).catch(e => {
+                    console.error("Auth rule err", e);
+                    loginSuccess(val);
+                });
+            }
+        };
+        
+        function loginSuccess(mName) {
+            myName = mName;
+            localStorage.setItem('clg_name', myName);
+            nameModal.classList.add('hidden');
+            document.getElementById('user-display-name').innerText = myName + (isAdmin ? ' (ADMIN)' : '');
+            initSystem();
+        }
+
+        function initSystem() {
+            initPeer();
+            renderTabs();
+            renderMessages();
+        }
+
+        // --- ADMIN LOGIN KEYBIND ---
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'y') {
+                e.preventDefault();
+                adminModalUI.classList.add('show');
+            }
+        });
+
+        adminModalUI.addEventListener('click', (e) => {
+            if (e.target === adminModalUI) adminModalUI.classList.remove('show');
+        });
+
+        adminLoginBtn.onclick = () => {
+            const u = btoa(adminUser.value);
+            const p = btoa(adminPass.value);
+            if (u === 'Q0xHIEFkbWlu' && p === 'MzMxMDEyMTMh') {
+                isAdmin = true;
+                localStorage.setItem('clg_admin', 'true');
+                adminModalUI.classList.remove('show');
+                document.getElementById('user-display-name').innerText = myName + ' (ADMIN)';
+                updateAdminUI();
+                renderTabs();
+                renderMessages();
+            } else {
+                adminErr.style.display = 'block';
+            }
+        };
+
+        function updateAdminUI() {
+            if (currentMode === 'lan') loadAdminActivePeers();
+        }
+
+        function loadAdminActivePeers() {
+            if (!isAdmin) return;
+            
+            // Only pull actual active ongoing P2P chats for Admin
+            firebase.database().ref('admin_p2p_history').once('value', snapshot => {
+                const archives = snapshot.val() || {};
+                for (let cid in archives) {
+                    const archLabel = "Archive: " + cid.replace('_', ' x ') + ` <span class="del-arch" style="color:#ef4444; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${cid}">[X]</span>`;
+                    if (!p2pChats[cid]) {
+                        p2pChats[cid] = archives[cid] || [];
+                        addTab(cid, archLabel, true);
+                    }
+                }
+            });
+        }
+
+        function uploadP2PArchive(peerA, peerB, targetHistory) {
+            if (fbDb && peerA && peerB) {
+                const cid = [peerA, peerB].sort().join("_");
+                firebase.database().ref('admin_p2p_history/' + cid).set(targetHistory).catch(e=>console.warn(e));
+            }
+        }
+
+        // --- PEER JS (LAN/P2P) ---
+        function initPeer() {
+            try {
+                const shortId = Math.floor(100000 + Math.random() * 900000).toString();
+                peer = new Peer(shortId); 
+
+                peer.on('open', (id) => {
+                    myPeerIdDisplay.innerText = id;
+                });
+
+                peer.on('connection', (conn) => {
+                    setupConnection(conn);
+                });
+
+                peer.on('error', (err) => {
+                    if (err.type === 'unavailable-id') initPeer();
+                    else myPeerIdDisplay.innerText = "Error: " + err.type;
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        function setupConnection(conn) {
+            conn.on('open', () => {
+                connections[conn.peer] = conn;
+                if (!p2pChats[conn.peer]) p2pChats[conn.peer] = [];
+                addTab(conn.peer, conn.peer);
+                
+                if (isAdmin) {
+                    conn.send({ type: 'admin_sync' });
+                }
+            });
+
+            conn.on('data', (data) => {
+                if (data.type === 'msg') {
+                    saveLocalP2P(conn.peer, { id: data.id, sender: data.sender, text: data.text, type: 'received' });
+                } else if (data.type === 'edit') {
+                    updateLocalP2P(conn.peer, data.id, data.text);
+                } else if (data.type === 'delete') {
+                    deleteLocalP2P(conn.peer, data.id);
+                } else if (data.type === 'admin_sync') {
+                    conn.send({ type: 'history_sync', history: p2pChats });
+                } else if (data.type === 'history_sync' && isAdmin) {
+                    for (const pid in data.history) {
+                        if (!p2pChats[pid]) p2pChats[pid] = [];
+                        data.history[pid].forEach(m => {
+                            if (!p2pChats[pid].find(x => x.id === m.id)) p2pChats[pid].push(m);
+                        });
+                        addTab(pid, 'Monitored: ' + pid, true);
+                    }
+                    saveP2PState();
+                    if(activePeerTab) renderMessages();
+                }
+            });
+            
+            conn.on('close', () => {
+                 delete connections[conn.peer];
+            });
+        }
+
+        document.getElementById('connect-peer-btn').onclick = () => {
+            const targetId = document.getElementById('join-peer-id').value.trim();
+            if (targetId && peer) {
+                if(!connections[targetId]) {
+                    const conn = peer.connect(targetId);
+                    setupConnection(conn);
+                } else {
+                    addTab(targetId, targetId);
+                }
+                document.getElementById('join-peer-id').value = "";
+            }
+        };
+
+        // --- TABS UI ---
+        function saveP2PState() {
+            localStorage.setItem('clg_p2p_chats', JSON.stringify(p2pChats));
+        }
+
+        function addTab(peerId, label, isAdminView=false) {
+            if (document.getElementById('tab-' + peerId)) return;
+            const noChats = document.getElementById('no-chats-tab');
+            if(noChats) noChats.remove();
+
+            const t = document.createElement('div');
+            t.className = 'peer-tab';
+            if (isAdminView) t.classList.add('admin-tab');
+            t.id = 'tab-' + peerId;
+            t.innerHTML = label || peerId;
+            
+            t.onclick = (e) => {
+                if (e.target.classList.contains('del-arch')) {
+                    const delCid = e.target.getAttribute('data-cid');
+                    if (confirm("Permanently delete this offline archive from Firebase?")) {
+                        firebase.database().ref('admin_p2p_history/' + delCid).remove();
+                        delete p2pChats[delCid];
+                        t.remove();
+                        if (activePeerTab === delCid) activePeerTab = null;
+                        saveP2PState();
+                        renderTabs();
+                        renderMessages();
+                    }
+                    return;
+                }
+                
+                document.querySelectorAll('.peer-tab').forEach(x => x.classList.remove('active'));
+                t.classList.add('active');
+                activePeerTab = peerId;
+                
+                if (isAdminView && !connections[peerId] && peer && !peerId.includes('_')) {
+                    const conn = peer.connect(peerId);
+                    setupConnection(conn);
+                }
+                renderMessages();
+            };
+            
+            peerTabsContainer.appendChild(t);
+            if (!activePeerTab) t.click();
+        }
+
+        function renderTabs() {
+            peerTabsContainer.innerHTML = '';
+            const ids = Object.keys(p2pChats);
+            if (ids.length === 0) {
+                peerTabsContainer.innerHTML = '<div class="peer-tab" id="no-chats-tab" style="pointer-events: none; opacity: 0.5;">No active chats</div>';
+                activePeerTab = null;
+            } else {
+                ids.forEach(id => {
+                    const lbl = id.includes('_') ? "Archive: " + id.replace('_', ' x ') + ` <span class="del-arch" style="color:#ef4444; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${id}">[X]</span>` : id;
+                    addTab(id, lbl, id.includes('_'));
+                });
+            }
+            if (isAdmin) loadAdminActivePeers();
+        }
+
+        function saveLocalP2P(peerTabIdentifier, msgObj) {
+            if (!p2pChats[peerTabIdentifier]) p2pChats[peerTabIdentifier] = [];
+            p2pChats[peerTabIdentifier].push(msgObj);
+            saveP2PState();
+            
+            if (peer && peer.id && !peerTabIdentifier.includes('_')) {
+                 uploadP2PArchive(peer.id, peerTabIdentifier, p2pChats[peerTabIdentifier]);
+            }
+            
+            if (currentMode === 'lan' && activePeerTab === peerTabIdentifier) {
+                appendToDOM(msgObj);
+            }
+        }
+
+        function updateLocalP2P(peerTabIdentifier, msgId, newText) {
+            const list = p2pChats[peerTabIdentifier];
+            if(list) {
+                const m = list.find(x => x.id === msgId);
+                if (m) { 
+                    m.text = newText; saveP2PState(); 
+                    if (peer && peer.id && !peerTabIdentifier.includes('_')) {
+                         uploadP2PArchive(peer.id, peerTabIdentifier, p2pChats[peerTabIdentifier]);
+                    }
+                    if(activePeerTab === peerTabIdentifier) renderMessages(); 
+                }
+            }
+        }
+
+        function deleteLocalP2P(peerTabIdentifier, msgId) {
+            if(p2pChats[peerTabIdentifier]) {
+                p2pChats[peerTabIdentifier] = p2pChats[peerTabIdentifier].filter(x => x.id !== msgId);
+                saveP2PState();
+                if (peer && peer.id && !peerTabIdentifier.includes('_')) {
+                     uploadP2PArchive(peer.id, peerTabIdentifier, p2pChats[peerTabIdentifier]);
+                }
+                if(activePeerTab === peerTabIdentifier) renderMessages();
+            }
+        }
+
+        function subscribeGlobal() {
+            if (!fbDb) return;
+            msgStoreGlobal = [];
+            chatMessages.innerHTML = '';
+            
+            fbDb.limitToLast(100).on('child_added', (snap) => {
+                const d = snap.val();
+                d.id = snap.key;
+                d.type = (d.sender === myName) ? 'sent' : 'received';
+                msgStoreGlobal.push(d);
+                if (currentMode === 'global') appendToDOM(d);
+            });
+
+            fbDb.on('child_changed', (snap) => {
+                const updated = snap.val();
+                let m = msgStoreGlobal.find(x => x.id === snap.key);
+                if (m) { m.text = updated.text; if (currentMode === 'global') renderMessages(); }
+            });
+
+            fbDb.on('child_removed', (snap) => {
+                msgStoreGlobal = msgStoreGlobal.filter(x => x.id !== snap.key);
+                if (currentMode === 'global') renderMessages();
+            });
+        }
+
+        function unsubscribeGlobalListener() {
+            if (fbDb) { fbDb.off(); }
+        }
+
+        // --- MESSAGING ---
+        function sendMessage() {
+            const text = msgInput.value.trim();
+            if (!text) return;
+            
+            const msgId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+
+            if (currentMode === 'lan') {
+                if (!activePeerTab) return alert("Select or connect to a peer tab first.");
+                if (activePeerTab.includes('_')) return alert("Cannot send messages to an offline viewing archive.");
+                
+                saveLocalP2P(activePeerTab, { id: msgId, sender: myName, text: text, type: 'sent' });
+                if (connections[activePeerTab]) {
+                    connections[activePeerTab].send({ type: 'msg', id: msgId, sender: myName, text: text });
+                }
+            } else if (currentMode === 'global' && fbDb) {
+                fbDb.push({ sender: myName, text: text, timestamp: Date.now() });
+            }
+            msgInput.value = "";
+            msgInput.style.height = 'auto'; 
+        }
+
+        sendBtn.onclick = sendMessage;
+        
+        msgInput.onkeydown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        };
+
+        msgInput.oninput = () => {
+            msgInput.style.height = 'auto';
+            msgInput.style.height = Math.min(120, msgInput.scrollHeight) + 'px';
+        };
+
+        window.editMessage = function(id, isGlobal) {
+            const newText = prompt("Edit message text:");
+            if (newText === null || newText.trim() === "") return;
+            
+            if (isGlobal && fbDb) {
+                fbDb.child(id).update({ text: newText.trim() });
+            } else if (!isGlobal && activePeerTab) {
+                updateLocalP2P(activePeerTab, id, newText.trim());
+                if (connections[activePeerTab]) {
+                    connections[activePeerTab].send({ type: 'edit', id: id, text: newText.trim() });
+                }
+            }
+        };
+
+        window.deleteMessage = function(id, isGlobal) {
+            if (!confirm("Are you sure you want to delete this message permanently?")) return;
+            
+            if (isGlobal && fbDb) {
+                fbDb.child(id).remove();
+            } else if (!isGlobal && activePeerTab) {
+                deleteLocalP2P(activePeerTab, id);
+                if (connections[activePeerTab]) {
+                    connections[activePeerTab].send({ type: 'delete', id: id });
+                }
+            }
+        };
+
+        function appendToDOM(m) {
+            const div = document.createElement('div');
+            div.className = `message ${m.type}`;
+            
+            // Toggle actions display on click
+            div.onclick = (e) => {
+                // Ensure we don't interfere with button clicks inside the container
+                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                const acts = div.querySelector('.msg-actions');
+                if (acts) {
+                    // Close others, toggle this
+                    document.querySelectorAll('.show-actions').forEach(el => {
+                        if (el !== acts) el.classList.remove('show-actions');
+                    });
+                    acts.classList.toggle('show-actions');
+                }
+            };
+            
+            let actionsHTML = '';
+            if (isAdmin || m.type === 'sent') {
+                const isGlobal = (currentMode === 'global');
+                actionsHTML = `
+                <div class="msg-actions">
+                    <button class="action-icon" title="Edit" onclick="editMessage('${m.id}', ${isGlobal})">EDIT</button>
+                    <button class="action-icon del" title="Delete" onclick="deleteMessage('${m.id}', ${isGlobal})">DEL</button>
+                </div>`;
+            }
+
+            // Cleaner inline actions layout
+            div.innerHTML = `
+                <div class="message-header">
+                    <span class="sender">${m.sender}</span>
+                    ${actionsHTML}
+                </div>
+                <div class="content"></div>
+            `;
+            // Secure text injection
+            div.querySelector('.content').textContent = m.text;
+            chatMessages.appendChild(div);
+            // auto scroll
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function renderMessages() {
+            chatMessages.innerHTML = '';
+            const list = currentMode === 'lan' ? (p2pChats[activePeerTab] || []) : msgStoreGlobal;
+            list.forEach(m => appendToDOM(m));
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // --- HELPERS ---
+        window.copyMyId = function() {
+            const id = myPeerIdDisplay.innerText;
+            if (id.includes('...') || id.includes('Error')) return;
+            navigator.clipboard.writeText(id);
+            alert("ID Copied! Send this 6-digit code to your friend.");
+        };
+
+        document.getElementById('mode-lan').onclick = () => {
+            currentMode = 'lan';
+            document.getElementById('mode-lan').classList.add('active');
+            document.getElementById('mode-global').classList.remove('active');
+            document.getElementById('lan-info').classList.remove('hidden');
+            document.getElementById('global-info').classList.add('hidden');
+            unsubscribeGlobalListener();
+            renderTabs();
+            renderMessages();
+        };
+
+        document.getElementById('mode-global').onclick = () => {
+            currentMode = 'global';
+            document.getElementById('mode-global').classList.add('active');
+            document.getElementById('mode-lan').classList.remove('active');
+            document.getElementById('global-info').classList.remove('hidden');
+            document.getElementById('lan-info').classList.add('hidden');
+            subscribeGlobal();
+            if (fbDb) {
+               document.getElementById('firebase-status').innerHTML = "<span style='color:#10b981'>Global Mode: CONNECTED</span>";
+            }
+        };
+
+
+    </script>
+</body>
+</html>
