@@ -1275,7 +1275,7 @@
             if (fileName.toLowerCase() === 'youtube' && !toggle.checked && !bypassCheck) {
                 toggleArea.style.pointerEvents = "none"; youtubeGui.classList.add('show'); return "WAITING";
             }
-            const path = fileName + ".html";
+            const path = encodeURI(fileName + ".html");
             if (toggle.checked) return githackUrl + path;
             try {
                 const response = await fetch(rawUrl + path);
@@ -1309,12 +1309,9 @@
                 youtubeGui.classList.add('show');
                 return;
             }
-            const newTab = window.open('about:blank', '_blank');
             const url = await getFinalUrl(game, bypass);
             if (url && url !== "WAITING") {
-                injectToTab(newTab, game.toUpperCase().replace(/[-_]/g, ' '), url);
-            } else if (newTab) {
-                newTab.close();
+                window.open(url, '_blank');
             }
         }
 
