@@ -61,11 +61,19 @@
             opacity: 0.8;
         }
 
+        /* Global Selectors */
+        button, .peer-tab, .action-icon, label, svg {
+            cursor: pointer;
+        }
+        button:hover, .action-icon:hover {
+            opacity: 0.9;
+        }
+
         /* Glassmorphic Container */
         .chat-container {
-            width: 95%;
-            max-width: 1400px;
-            height: 90vh;
+            width: 98%;
+            max-width: 1800px;
+            height: 95vh;
             background: var(--glass);
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
@@ -484,14 +492,43 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
+        /* Discord Style Reply Hook */
         .reply-block {
-            background: rgba(0, 0, 0, 0.2);
-            border-left: 3px solid #a78bfa;
-            padding: 6px 10px;
-            border-radius: 6px;
-            margin-bottom: 8px;
-            font-size: 0.85rem;
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
             color: #cbd5e1;
+            display: flex;
+            align-items: center;
+        }
+        .reply-block::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 16px;
+            height: 20px;
+            border-left: 2px solid #64748b;
+            border-top: 2px solid #64748b;
+            border-top-left-radius: 6px;
+            transform: translateY(-100%);
+        }
+        .reply-block .reply-name {
+            font-weight: bold;
+            color: #c4b5fd;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        .reply-block .reply-name:hover {
+            text-decoration: underline;
+        }
+        .reply-block .reply-text {
+            color: #94a3b8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
         }
 
         .admin-user-list {
@@ -595,6 +632,41 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="text-align: left; padding: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 1.5rem;">Settings Engine</h3>
+                <button onclick="closeSettings()" style="background: transparent; border: none; color: var(--text-dim); cursor: pointer;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: var(--text-dim); margin-bottom: 8px; font-weight: 600;">Theme Color</label>
+                <div style="display: flex; gap: 10px;">
+                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #8b5cf6; cursor: pointer;" onclick="changeColor('#8b5cf6', 'rgba(139, 92, 246, 0.4)')"></div>
+                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #ef4444; cursor: pointer;" onclick="changeColor('#ef4444', 'rgba(239, 68, 68, 0.4)')"></div>
+                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #10b981; cursor: pointer;" onclick="changeColor('#10b981', 'rgba(16, 185, 129, 0.4)')"></div>
+                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #f59e0b; cursor: pointer;" onclick="changeColor('#f59e0b', 'rgba(245, 158, 11, 0.4)')"></div>
+                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #3b82f6; cursor: pointer;" onclick="changeColor('#3b82f6', 'rgba(59, 130, 246, 0.4)')"></div>
+                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #fb7185; cursor: pointer;" onclick="changeColor('#fb7185', 'rgba(251, 113, 133, 0.4)')"></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: var(--text-dim); margin-bottom: 8px; font-weight: 600;">Text Scaling</label>
+                <select id="setting-text" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); border-radius: 8px; outline: none; cursor: pointer;" onchange="updateSettings()">
+                    <option value="13px">Small</option>
+                    <option value="15px" selected>Normal</option>
+                    <option value="18px">Large</option>
+                </select>
+            </div>
+            
+            <button onclick="saveSettingsToFirebase()" class="modal-btn" style="margin-top: 10px;">Sync Profile</button>
+        </div>
+    </div>
+
     <!-- Main Container -->
     <div class="chat-container">
         <!-- Sidebar -->
@@ -638,11 +710,18 @@
                     Check source code to add keys.</p>
             </div>
 
-            <div style="margin-top: auto;">
-                <p style="font-size: 0.75rem; color: var(--text-dim);">Logged in as: <strong
-                        id="user-display-name">---</strong></p>
-                <button onclick="safeClear(); location.reload();"
-                    class="mode-btn" style="width: 100%; text-align: left; padding: 0;">Logout</button>
+            <div style="margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between;">
+                <div>
+                    <p style="font-size: 0.75rem; color: var(--text-dim);">Logged in as: <strong id="user-display-name">---</strong></p>
+                    <button onclick="safeClear(); location.reload();" class="mode-btn" style="text-align: left; padding: 0;">Logout</button>
+                </div>
+                <!-- Cog Icon -->
+                <button onclick="openSettings()" class="action-icon" style="background: transparent; border: none; padding: 6px; margin-bottom: 8px;" title="Settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
             </div>
         </div>
 
@@ -832,6 +911,29 @@
             drawParticles();
         }
 
+        // --- CUSTOM TOAST NOTIFICATIONS ---
+        document.body.insertAdjacentHTML('beforeend', '<div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>');
+        function showNotification(msg, type='info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.style.cssText = `background: rgba(20, 15, 40, 0.95); border-left: 4px solid var(--primary); color: #fff; padding: 16px 20px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 0.9rem; transform: translateX(120%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 12px; min-width: 250px; pointer-events: auto;`;
+            if(type === 'error') toast.style.borderLeftColor = '#ef4444';
+            if(type === 'success') toast.style.borderLeftColor = '#10b981';
+            
+            let icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            if(type === 'error') icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
+            if(type === 'success') icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+            
+            toast.innerHTML = `${icon} <span style="font-weight: 500;">${msg}</span>`;
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => toast.style.transform = 'translateX(0)');
+            setTimeout(() => {
+                toast.style.transform = 'translateX(120%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
         // --- FIREBASE (GLOBAL) ---
         function initFirebase() {
             if (fbApp) return;
@@ -956,6 +1058,7 @@
                 presRef.onDisconnect().set({ state: 'offline', ts: firebase.database.ServerValue.TIMESTAMP });
             }
             initSystem();
+            loadSettings();
         }
 
         function initSystem() {
@@ -963,6 +1066,65 @@
             renderTabs();
             renderMessages();
             if (isAdmin) buildAdminDashboard();
+        }
+
+        // --- SETTINGS ENGINE ---
+        let userSettings = { color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.4)', fontSize: '15px' };
+        
+        function openSettings() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            document.getElementById('setting-text').value = userSettings.fontSize || '15px';
+        }
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+        
+        function changeColor(hex, glow) {
+            userSettings.color = hex;
+            userSettings.glow = glow;
+            applySettings();
+        }
+        
+        function updateSettings() {
+            userSettings.fontSize = document.getElementById('setting-text').value;
+            applySettings();
+        }
+        
+        function applySettings() {
+            document.documentElement.style.setProperty('--primary', userSettings.color);
+            document.documentElement.style.setProperty('--primary-glow', userSettings.glow);
+            document.body.style.fontSize = userSettings.fontSize;
+            
+            // Re-render UI to apply font scale immediately
+            renderMessages();
+        }
+
+        function loadSettings() {
+            let s = null;
+            try { s = JSON.parse(localStorage.getItem('clg_settings_' + myName)); } catch(e) {}
+            if (s) { userSettings = { ...userSettings, ...s }; applySettings(); }
+            
+            if(fbDb) {
+                firebase.database().ref('users/' + myName + '/settings').once('value', snap => {
+                    if (snap.val()) {
+                        userSettings = { ...userSettings, ...snap.val() };
+                        try { localStorage.setItem('clg_settings_' + myName, JSON.stringify(userSettings)); } catch(e){}
+                        applySettings();
+                    }
+                });
+            }
+        }
+
+        function saveSettingsToFirebase() {
+            try { localStorage.setItem('clg_settings_' + myName, JSON.stringify(userSettings)); } catch(e){}
+            if(fbDb && myName) {
+                firebase.database().ref('users/' + myName + '/settings').set(userSettings).then(() => {
+                    showNotification("Profile settings synchronized via Firebase.", "success");
+                }).catch(e => showNotification("Local save only. " + e.message, "info"));
+            } else {
+                showNotification("Settings saved locally.", "success");
+            }
+            closeSettings();
         }
 
         // --- ADMIN LOGIN KEYBIND ---
@@ -1013,10 +1175,16 @@
                         archMsgs = archData;
                     } else if (archData && archData.messages) {
                         archMsgs = archData.messages;
-                        if (archData.hostName) dName = archData.hostName + "'s Room";
+                    }
+                    
+                    if (archMsgs && archMsgs.length > 0) {
+                        dName = archMsgs[0].sender + "'s Room";
+                    }
+                    if (archData && archData.hostName) {
+                        dName = archData.hostName + "'s Room";
                     }
 
-                    const archLabel = "Archive: " + dName + ` <span class="del-arch" style="color:#ef4444; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${cid}">[X]</span>`;
+                    const archLabel = "Archive: " + dName + ` <span class="close-arch" style="color:#c4b5fd; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${cid}">[Hide]</span>` + ` <span class="del-arch" style="color:#ef4444; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${cid}">[Delete]</span>`;
                     
                     if (!p2pChats[cid]) {
                         p2pChats[cid] = archMsgs;
@@ -1055,7 +1223,7 @@
                 peer.on('error', (err) => {
                     if (err.type === 'unavailable-id') initPeer();
                     else if (err.type === 'peer-unavailable') {
-                        alert("Peer not found. The 4-digit code might be incorrect or they are offline.");
+                        showNotification("Peer not found. The 4-digit code might be incorrect or they are offline.", 'error');
                         myPeerIdDisplay.innerText = "Error: Peer not found";
                     }
                     else myPeerIdDisplay.innerText = "Error: " + err.type;
@@ -1076,9 +1244,11 @@
 
             conn.on('data', (data) => {
                 if (data.type === 'handshake') {
-                    // Update tab name to actual user name instead of numbers
+                    // Update tab name to actual user name instead of numbers, retaining Leave functionality
                     const existingTab = document.getElementById('tab-' + conn.peer);
-                    if (existingTab && data.name) existingTab.innerHTML = data.name;
+                    if (existingTab && data.name) {
+                        existingTab.innerHTML = data.name + ` <span class="leave-chat" style="color:#ef4444; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${conn.peer}">[Leave]</span>`;
+                    }
                 } else if (data.type === 'msg') {
                     saveLocalP2P(conn.peer, { id: data.id, sender: data.sender, text: data.text, mType: data.mType, replyTo: data.replyTo, type: 'received' });
                 } else if (data.type === 'edit') {
@@ -1114,7 +1284,7 @@
                         conn.on('open', () => conn.send({ type: 'handshake', name: myName }));
                         setupConnection(conn);
                     } catch (e) {
-                        alert("Invalid P2P code.");
+                        showNotification("Invalid P2P code.", 'error');
                     }
                 } else {
                     addTab(targetId, targetId);
@@ -1144,6 +1314,34 @@
                     const delCid = e.target.getAttribute('data-cid');
                     if (confirm("Permanently delete this offline archive from Firebase?")) {
                         firebase.database().ref('admin_p2p_history/' + delCid).remove();
+                        delete p2pChats[delCid];
+                        t.remove();
+                        if (activePeerTab === delCid) activePeerTab = null;
+                        saveP2PState();
+                        renderTabs();
+                        renderMessages();
+                    }
+                    return;
+                }
+
+                if (e.target.classList.contains('close-arch')) {
+                    const delCid = e.target.getAttribute('data-cid');
+                    delete p2pChats[delCid];
+                    t.remove();
+                    if (activePeerTab === delCid) activePeerTab = null;
+                    saveP2PState();
+                    renderTabs();
+                    renderMessages();
+                    return;
+                }
+
+                if (e.target.classList.contains('leave-chat')) {
+                    const delCid = e.target.getAttribute('data-cid');
+                    if (confirm("Leave this active P2P chat room?")) {
+                        if (connections[delCid]) {
+                            connections[delCid].close();
+                            delete connections[delCid];
+                        }
                         delete p2pChats[delCid];
                         t.remove();
                         if (activePeerTab === delCid) activePeerTab = null;
@@ -1185,7 +1383,16 @@
                 activePeerTab = null;
             } else {
                 ids.forEach(id => {
-                    const lbl = id.includes('_') ? "Archive: " + id.replace('_', ' x ') + ` <span class="del-arch" style="color:#ef4444; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${id}">[X]</span>` : id;
+                    let lbl;
+                    if (id.includes('_')) {
+                        let dName = id.replace('_', ' x ');
+                        if (p2pChats[id] && p2pChats[id].length > 0 && p2pChats[id][0].sender) {
+                            dName = p2pChats[id][0].sender + "'s Room";
+                        }
+                        lbl = "Archive: " + dName + ` <span class="close-arch" style="color:#c4b5fd; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${id}">[Hide]</span>` + ` <span class="del-arch" style="color:#ef4444; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${id}">[Delete]</span>`;
+                    } else {
+                        lbl = id + ` <span class="leave-chat" style="color:#ef4444; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${id}">[Leave]</span>`;
+                    }
                     addTab(id, lbl, id.includes('_'));
                 });
             }
@@ -1267,8 +1474,8 @@
             // Render reply block
             if (msgObj.replyTo) {
                 html += `<div class="reply-block">
-                            <span style="font-weight: bold; color: #c4b5fd;">Replying to ${msgObj.replyTo.name}</span><br>
-                            ${msgObj.replyTo.text}
+                            <span class="reply-name">@${msgObj.replyTo.name}</span>
+                            <span class="reply-text">${msgObj.replyTo.text}</span>
                          </div>`;
             }
 
@@ -1336,8 +1543,8 @@
             let replyData = replyingToMsg ? { ...replyingToMsg } : null;
 
             if (currentMode === 'lan') {
-                if (!activePeerTab) return alert("Select or connect to a peer tab first.");
-                if (activePeerTab.includes('_')) return alert("Cannot send messages to an offline viewing archive.");
+                if (!activePeerTab) return showNotification("Select or connect to a peer tab first.", 'error');
+                if (activePeerTab.includes('_')) return showNotification("Cannot send messages to an offline viewing archive.", 'error');
 
                 saveLocalP2P(activePeerTab, { id: msgId, sender: myName, text: content, mType: mType, replyTo: replyData, type: 'sent' });
                 if (connections[activePeerTab]) {
@@ -1458,7 +1665,7 @@
             const id = myPeerIdDisplay.innerText;
             if (id.includes('...') || id.includes('Error')) return;
             navigator.clipboard.writeText(id);
-            alert("ID Copied! Send this 6-digit code to your friend.");
+            showNotification("ID Copied! Send this 4-digit code to your friend.", "success");
         };
 
         document.getElementById('mode-lan').onclick = () => {
