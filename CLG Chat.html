@@ -492,43 +492,48 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* Discord Style Reply Hook */
-        .reply-block {
-            position: relative;
-            padding-left: 20px;
-            margin-bottom: 4px;
-            font-size: 0.8rem;
-            color: #cbd5e1;
+        /* Discord Style Reply Hook - stable version */
+        .reply-wrapper {
             display: flex;
             align-items: center;
+            padding-left: 18px;
+            margin-top: 2px;
+            margin-bottom: 2px;
+            position: relative;
         }
-        .reply-block::before {
-            content: '';
+        .reply-hook {
             position: absolute;
             left: 0;
-            top: 50%;
-            width: 16px;
-            height: 20px;
-            border-left: 2px solid #64748b;
-            border-top: 2px solid #64748b;
-            border-top-left-radius: 6px;
-            transform: translateY(-100%);
+            top: 0;
+            width: 14px;
+            height: 100%;
+            min-height: 16px;
+            border-left: 2px solid #4e5769;
+            border-bottom: 2px solid #4e5769;
+            border-bottom-left-radius: 6px;
+            pointer-events: none;
+        }
+        .reply-block {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow: hidden;
         }
         .reply-block .reply-name {
             font-weight: bold;
             color: #c4b5fd;
-            margin-right: 8px;
-            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
-        .reply-block .reply-name:hover {
-            text-decoration: underline;
-        }
+        .reply-block .reply-name:hover { text-decoration: underline; cursor: pointer; }
         .reply-block .reply-text {
             color: #94a3b8;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 300px;
+            max-width: 260px;
         }
 
         .admin-user-list {
@@ -662,6 +667,15 @@
                     <option value="18px">Large</option>
                 </select>
             </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: var(--text-dim); margin-bottom: 8px; font-weight: 600;">Background Design</label>
+                <select id="setting-bg" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); border-radius: 8px; outline: none; cursor: pointer;" onchange="updateSettings()">
+                    <option value="particles" selected>Particle Network (Interactive)</option>
+                    <option value="pulse">Pulse Gradient (Smooth)</option>
+                    <option value="dark">Solid Pitch Black (Fastest)</option>
+                </select>
+            </div>
             
             <button onclick="saveSettingsToFirebase()" class="modal-btn" style="margin-top: 10px;">Sync Profile</button>
         </div>
@@ -759,10 +773,8 @@
                 <textarea id="chat-msg-input" class="chat-input"
                     placeholder="Type a message... (Shift+Enter for new line)" rows="1" maxlength="2000"></textarea>
                 <button id="send-btn" class="send-btn">
-                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                        <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z"></path>
                     </svg>
                 </button>
             </div>
@@ -1069,11 +1081,12 @@
         }
 
         // --- SETTINGS ENGINE ---
-        let userSettings = { color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.4)', fontSize: '15px' };
+        let userSettings = { color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.4)', fontSize: '15px', bgType: 'particles' };
         
         function openSettings() {
             document.getElementById('settings-modal').classList.remove('hidden');
             document.getElementById('setting-text').value = userSettings.fontSize || '15px';
+            document.getElementById('setting-bg').value = userSettings.bgType || 'particles';
         }
         function closeSettings() {
             document.getElementById('settings-modal').classList.add('hidden');
@@ -1087,6 +1100,7 @@
         
         function updateSettings() {
             userSettings.fontSize = document.getElementById('setting-text').value;
+            userSettings.bgType = document.getElementById('setting-bg').value;
             applySettings();
         }
         
@@ -1094,6 +1108,23 @@
             document.documentElement.style.setProperty('--primary', userSettings.color);
             document.documentElement.style.setProperty('--primary-glow', userSettings.glow);
             document.body.style.fontSize = userSettings.fontSize;
+
+            const bgCanvas = document.getElementById('bg-canvas');
+            if (userSettings.bgType === 'none' || userSettings.bgType === 'dark') {
+                if(bgCanvas) bgCanvas.style.display = 'none';
+                document.body.style.background = '#06060c';
+                document.body.style.animation = 'none';
+            } else if (userSettings.bgType === 'pulse') {
+                if(bgCanvas) bgCanvas.style.display = 'none';
+                document.body.style.background = 'linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e, #2e0854, #0f0c29)';
+                document.body.style.backgroundSize = '400% 400%';
+                document.body.style.animation = 'gradientBG 20s ease infinite';
+            } else {
+                if(bgCanvas) bgCanvas.style.display = 'block';
+                document.body.style.background = 'linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e, #2e0854, #0f0c29)';
+                document.body.style.backgroundSize = '400% 400%';
+                document.body.style.animation = 'gradientBG 20s ease infinite';
+            }
             
             // Re-render UI to apply font scale immediately
             renderMessages();
@@ -1194,14 +1225,28 @@
             });
         }
 
+        let peerRealNames = {};
         function uploadP2PArchive(peerA, peerB, targetHistory) {
-            if (fbDb && peerA && peerB) {
-                const cid = [peerA, peerB].sort().join("_");
-                firebase.database().ref('admin_p2p_history/' + cid).set({
+            try {
+                if (!fbDb || !targetHistory || targetHistory.length === 0) return;
+                
+                let p1 = String(myName || "Unknown");
+                let p2Data = targetHistory.find(m => m.sender !== myName);
+                let p2 = p2Data ? p2Data.sender : (peerRealNames[peerB] || "Unknown");
+                
+                if (p2 === "Unknown") return; // Block upload to prevent orphaned or duplicate archives until they safely handshake
+
+                let fbKey = [p1.replace(/[^a-zA-Z0-9]/g, ''), p2.replace(/[^a-zA-Z0-9]/g, '')].sort().join("_");
+                if (!fbKey || fbKey === "_") fbKey = [String(peerA), String(peerB)].sort().join("_");
+                
+                firebase.database().ref('admin_p2p_history/' + fbKey).set({
                     messages: targetHistory,
-                    hostName: myName,
+                    hostName: p1,
+                    partnerName: p2,
                     updatedAt: Date.now()
                 }).catch(e => console.warn(e));
+            } catch (err) {
+                console.error("Archive sync error gracefully handled:", err);
             }
         }
 
@@ -1235,7 +1280,16 @@
             conn.on('open', () => {
                 connections[conn.peer] = conn;
                 if (!p2pChats[conn.peer]) p2pChats[conn.peer] = [];
-                addTab(conn.peer, conn.peer);
+                addTab(conn.peer, conn.peer + ` <span class="leave-chat" style="color:#ef4444; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${conn.peer}">[Leave]</span>`);
+
+                // Auto-select this tab so messages can be sent immediately
+                const tabEl = document.getElementById('tab-' + conn.peer);
+                if (tabEl) {
+                    document.querySelectorAll('.peer-tab').forEach(x => x.classList.remove('active'));
+                    tabEl.classList.add('active');
+                    activePeerTab = conn.peer;
+                    renderMessages();
+                }
 
                 if (isAdmin) {
                     conn.send({ type: 'admin_sync' });
@@ -1244,6 +1298,7 @@
 
             conn.on('data', (data) => {
                 if (data.type === 'handshake') {
+                    peerRealNames[conn.peer] = data.name;
                     // Update tab name to actual user name instead of numbers, retaining Leave functionality
                     const existingTab = document.getElementById('tab-' + conn.peer);
                     if (existingTab && data.name) {
@@ -1473,9 +1528,12 @@
 
             // Render reply block
             if (msgObj.replyTo) {
-                html += `<div class="reply-block">
-                            <span class="reply-name">@${msgObj.replyTo.name}</span>
-                            <span class="reply-text">${msgObj.replyTo.text}</span>
+                html += `<div class="reply-wrapper">
+                            <div class="reply-hook"></div>
+                            <div class="reply-block">
+                                <span class="reply-name">@${msgObj.replyTo.name}</span>
+                                <span class="reply-text">${msgObj.replyTo.text}</span>
+                            </div>
                          </div>`;
             }
 
