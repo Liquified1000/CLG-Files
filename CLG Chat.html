@@ -250,6 +250,19 @@
             color: rgba(255, 255, 255, 0.8);
         }
 
+        .msg-timestamp {
+            font-size: 0.68rem;
+            color: rgba(255, 255, 255, 0.35);
+            white-space: nowrap;
+            flex-shrink: 0;
+            align-self: flex-end;
+            margin-left: auto;
+            padding-left: 8px;
+        }
+        .message.sent .msg-timestamp {
+            color: rgba(255, 255, 255, 0.55);
+        }
+
         .msg-actions {
             display: none;
             gap: 8px;
@@ -536,6 +549,15 @@
             max-width: 260px;
         }
 
+        @keyframes msgHighlight {
+            0%   { background: rgba(139, 92, 246, 0.35); }
+            100% { background: transparent; }
+        }
+        .reply-highlight {
+            animation: msgHighlight 1.8s ease-out;
+            border-radius: 8px;
+        }
+
         .admin-user-list {
             margin-top: 25px;
             padding-top: 15px;
@@ -806,7 +828,6 @@
         let connections = {}; // { connId: conn }
         let currentMode = 'lan';
         let activePeerTab = null;
-        let msgStoreGlobal = [];
 
         const firebaseConfig = {
             apiKey: "AIzaSyDlDdTzi8tDr_zuKxfPo6ni3Yrntxkbo9E",
@@ -837,6 +858,23 @@
         const adminPass = document.getElementById('admin-pass');
         const adminLoginBtn = document.getElementById('admin-login-btn');
         const adminErr = document.getElementById('admin-error');
+
+        // --- GLOBAL STATE & HELPERS ---
+        const _renderedIds = new Set();
+        let msgStoreGlobal = [];
+        let replyingToId = null;
+        let replyingToMsg = null;
+
+        function _formatTimestamp(ts) {
+            if (!ts) return '';
+            const d = new Date(Number(ts));
+            if (isNaN(d.getTime())) return '';
+            const now = new Date();
+            const isToday = d.toDateString() === now.toDateString();
+            const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            if (isToday) return time;
+            return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + time;
+        }
 
         // --- CANVAS BACKGROUND (PARTICLE NETWORK) ---
         const canvas = document.getElementById('bg-canvas');
@@ -1305,7 +1343,7 @@
                         existingTab.innerHTML = data.name + ` <span class="leave-chat" style="color:#ef4444; margin-left:8px; font-weight:bold; font-size:12px;" data-cid="${conn.peer}">[Leave]</span>`;
                     }
                 } else if (data.type === 'msg') {
-                    saveLocalP2P(conn.peer, { id: data.id, sender: data.sender, text: data.text, mType: data.mType, replyTo: data.replyTo, type: 'received' });
+                    saveLocalP2P(conn.peer, { id: data.id, sender: data.sender, text: data.text, mType: data.mType, replyTo: data.replyTo, type: 'received', timestamp: data.timestamp || Date.now() });
                 } else if (data.type === 'edit') {
                     updateLocalP2P(conn.peer, data.id, data.text);
                 } else if (data.type === 'delete') {
@@ -1482,53 +1520,60 @@
             }
         }
 
-        function deleteLocalP2P(peerTabIdentifier, msgId) {
-            if (p2pChats[peerTabIdentifier]) {
-                p2pChats[peerTabIdentifier] = p2pChats[peerTabIdentifier].filter(x => x.id !== msgId);
-                saveP2PState();
-                if (peer && peer.id && !peerTabIdentifier.includes('_')) {
-                    uploadP2PArchive(peer.id, peerTabIdentifier, p2pChats[peerTabIdentifier]);
-                }
-                if (activePeerTab === peerTabIdentifier) renderMessages();
-            }
-        }
+        // --- GLOBAL SERVICES ---
 
         function subscribeGlobal() {
             if (!fbDb) return;
-            msgStoreGlobal = [];
-            chatMessages.innerHTML = '';
+            // Only reset state if not already subscribed (avoid duplicate listeners)
+            if (!subscribeGlobal._active) {
+                subscribeGlobal._active = true;
+                msgStoreGlobal = [];
+                // Clear DOM and dedup set for a clean global view
+                chatMessages.innerHTML = '';
+                _renderedIds.clear();
 
-            fbDb.limitToLast(100).on('child_added', (snap) => {
-                const d = snap.val();
-                d.id = snap.key;
-                d.type = (d.sender === myName) ? 'sent' : 'received';
-                msgStoreGlobal.push(d);
-                if (currentMode === 'global') appendToDOM(d);
-            });
+                fbDb.limitToLast(100).on('child_added', (snap) => {
+                    const d = snap.val();
+                    d.id = snap.key;
+                    d.type = (d.sender === myName) ? 'sent' : 'received';
+                    // Only add to store if not already there (guards re-subscription)
+                    if (!msgStoreGlobal.find(x => x.id === d.id)) {
+                        msgStoreGlobal.push(d);
+                    }
+                    if (currentMode === 'global') appendToDOM(d);
+                });
 
-            fbDb.on('child_changed', (snap) => {
-                const updated = snap.val();
-                let m = msgStoreGlobal.find(x => x.id === snap.key);
-                if (m) { m.text = updated.text; if (currentMode === 'global') renderMessages(); }
-            });
+                fbDb.on('child_changed', (snap) => {
+                    const updated = snap.val();
+                    let m = msgStoreGlobal.find(x => x.id === snap.key);
+                    if (m) { m.text = updated.text; if (currentMode === 'global') renderMessages(); }
+                });
 
-            fbDb.on('child_removed', (snap) => {
-                msgStoreGlobal = msgStoreGlobal.filter(x => x.id !== snap.key);
-                if (currentMode === 'global') renderMessages();
-            });
+                fbDb.on('child_removed', (snap) => {
+                    msgStoreGlobal = msgStoreGlobal.filter(x => x.id !== snap.key);
+                    if (currentMode === 'global') renderMessages();
+                });
+            } else {
+                // Already subscribed — just re-render what we have
+                renderMessages();
+            }
         }
 
         function unsubscribeGlobalListener() {
-            if (fbDb) { fbDb.off(); }
+            if (fbDb) {
+                fbDb.off();
+                subscribeGlobal._active = false;
+            }
         }
 
         // --- MESSAGING & EMBEDDING ---
         function parseMessageContent(text, msgObj) {
             let html = "";
 
-            // Render reply block
+            // Render reply block with click-to-jump
             if (msgObj.replyTo) {
-                html += `<div class="reply-wrapper">
+                const replyId = msgObj.replyTo.id || '';
+                html += `<div class="reply-wrapper" onclick="jumpToMessage('${replyId}')" style="cursor:pointer;" title="Jump to original message">
                             <div class="reply-hook"></div>
                             <div class="reply-block">
                                 <span class="reply-name">@${msgObj.replyTo.name}</span>
@@ -1539,15 +1584,16 @@
 
             // Escape HTML normally to prevent XSS
             const escapeHTML = (str) => {
+                if (typeof str !== 'string') return '';
                 const p = document.createElement('p');
                 p.textContent = str;
                 return p.innerHTML;
             };
 
             if (msgObj.mType === 'img') {
-                html += `<img src="${text}" class="chat-image" />`;
+                html += `<img src="${text || ''}" class="chat-image" />`;
             } else {
-                let escapedText = escapeHTML(text);
+                let escapedText = escapeHTML(text || "");
 
                 // Embed Images/Gifs parsing
                 const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -1570,6 +1616,7 @@
             return html;
         }
 
+        // Reply state & helpers
         window.cancelReply = function () {
             replyingToId = null;
             replyingToMsg = null;
@@ -1578,11 +1625,23 @@
 
         window.initReply = function (id, senderName, textContent, isImg) {
             replyingToId = id;
-            replyingToMsg = { name: senderName, text: isImg ? "[Image]" : textContent.substring(0, 50) + (textContent.length > 50 ? "..." : "") };
+            replyingToMsg = { id: id, name: senderName, text: isImg ? "[Image]" : textContent.substring(0, 50) + (textContent.length > 50 ? "..." : "") };
             document.getElementById('reply-target-name').innerText = senderName;
             document.getElementById('reply-summary').innerText = replyingToMsg.text;
             document.getElementById('reply-banner').classList.remove('hidden');
             msgInput.focus();
+        };
+
+        window.jumpToMessage = function (msgId) {
+            if (!msgId) return;
+            const target = chatMessages.querySelector(`[data-msg-id="${msgId}"]`);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.classList.remove('reply-highlight');
+                void target.offsetWidth; // force reflow to restart animation
+                target.classList.add('reply-highlight');
+                setTimeout(() => target.classList.remove('reply-highlight'), 1900);
+            }
         };
 
         function sendMessage() {
@@ -1597,6 +1656,7 @@
         function sendMediaMessage(content, isBase64Img) {
             const msgId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
             const mType = isBase64Img ? 'img' : 'text';
+            const now = Date.now();
 
             let replyData = replyingToMsg ? { ...replyingToMsg } : null;
 
@@ -1604,30 +1664,19 @@
                 if (!activePeerTab) return showNotification("Select or connect to a peer tab first.", 'error');
                 if (activePeerTab.includes('_')) return showNotification("Cannot send messages to an offline viewing archive.", 'error');
 
-                saveLocalP2P(activePeerTab, { id: msgId, sender: myName, text: content, mType: mType, replyTo: replyData, type: 'sent' });
+                saveLocalP2P(activePeerTab, { id: msgId, sender: myName, text: content, mType: mType, replyTo: replyData, type: 'sent', timestamp: now });
                 if (connections[activePeerTab]) {
-                    connections[activePeerTab].send({ type: 'msg', id: msgId, sender: myName, text: content, mType: mType, replyTo: replyData });
+                    connections[activePeerTab].send({ type: 'msg', id: msgId, sender: myName, text: content, mType: mType, replyTo: replyData, timestamp: now });
                 }
             } else if (currentMode === 'global' && fbDb) {
-                fbDb.push({ sender: myName, text: content, mType: mType, replyTo: replyData, timestamp: Date.now() });
+                // Push to Firebase — child_added listener will render it via appendToDOM (dedup guard prevents double render)
+                fbDb.push({ sender: myName, text: content, mType: mType, replyTo: replyData, timestamp: now });
             }
 
             if (isBase64Img) cancelReply();
         }
 
-        sendBtn.onclick = sendMessage;
-
-        msgInput.onkeydown = (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        };
-
-        msgInput.oninput = () => {
-            msgInput.style.height = 'auto';
-            msgInput.style.height = Math.min(120, msgInput.scrollHeight) + 'px';
-        };
+        // End of messaging logic
 
         window.editMessage = function (id, isGlobal) {
             const newText = prompt("Edit message text:");
@@ -1657,9 +1706,12 @@
         };
 
         function appendToDOM(m) {
+            // Never render the same message twice
+            if (m.id && _renderedIds.has(m.id)) return;
+            if (m.id) _renderedIds.add(m.id);
             const div = document.createElement('div');
             div.className = `message ${m.type}`;
-
+            div.dataset.msgId = m.id; // needed for jump-to-message
             // Toggle actions display on click
             div.onclick = (e) => {
                 // Ensure we don't interfere with button clicks inside the container
@@ -1676,7 +1728,10 @@
 
             let actionsHTML = '';
             const isGlobal = (currentMode === 'global');
-            let replyParamStr = m.mType === 'img' ? "''" : `\`${m.text.replace(/`/g, '\\`')}\``;
+            
+            // Robust check for text content in replays
+            const safeText = (typeof m.text === 'string') ? m.text : "";
+            let replyParamStr = m.mType === 'img' ? "''" : `\`${safeText.replace(/`/g, '\\`')}\``;
 
             if (isAdmin || m.type === 'sent') {
                 actionsHTML = `<div class="msg-actions">
@@ -1699,9 +1754,11 @@
             }
 
             // Cleaner inline actions layout
+            const tsStr = _formatTimestamp(m.timestamp || m.ts || (m.id ? parseInt(m.id, 36) : null));
             div.innerHTML = `
                 <div class="message-header">
                     <span class="sender">${m.sender}</span>
+                    <span class="msg-timestamp">${tsStr}</span>
                     ${actionsHTML}
                 </div>
                 <div class="content">${parseMessageContent(m.text, m)}</div>
@@ -1712,7 +1769,9 @@
         }
 
         function renderMessages() {
+            // Clear DOM and dedup set so messages are re-rendered cleanly on tab switch
             chatMessages.innerHTML = '';
+            _renderedIds.clear();
             const list = currentMode === 'lan' ? (p2pChats[activePeerTab] || []) : msgStoreGlobal;
             list.forEach(m => appendToDOM(m));
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -1745,8 +1804,24 @@
             document.getElementById('lan-info').classList.add('hidden');
             subscribeGlobal();
             if (fbDb) {
-                document.getElementById('firebase-status').innerHTML = "<span style='color:#10b981'>Global Mode: CONNECTED</span>";
+                const statusEl = document.getElementById('firebase-status');
+                if (statusEl) statusEl.innerHTML = "<span style='color:#10b981'>Global Mode: CONNECTED</span>";
             }
+        };
+
+        // --- ATTACH HANDLERS IMMEDIATELY ---
+        sendBtn.onclick = sendMessage;
+
+        msgInput.onkeydown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        };
+
+        msgInput.oninput = () => {
+            msgInput.style.height = 'auto';
+            msgInput.style.height = Math.min(120, msgInput.scrollHeight) + 'px';
         };
 
         // --- ADMIN DASHBOARD ---
