@@ -1226,6 +1226,7 @@
 
         function updateAdminUI() {
             if (currentMode === 'lan') loadAdminActivePeers();
+            if (isAdmin) buildAdminDashboard();
         }
 
         function loadAdminActivePeers() {
@@ -1827,11 +1828,15 @@
         // --- ADMIN DASHBOARD ---
         function buildAdminDashboard() {
             if (!fbDb) return;
+            // Prevent duplicate dashboards
+            if (document.getElementById('admin-dash')) return;
+
             const dash = document.createElement('div');
             dash.className = 'admin-user-list';
             dash.id = 'admin-dash';
             dash.innerHTML = `<h4 style="margin: 0 0 10px 0; color: #a78bfa; font-size: 0.8rem; text-transform: uppercase;">Identity Database</h4><div id="admin-user-container"></div>`;
-            document.querySelector('.sidebar').appendChild(dash);
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) sidebar.appendChild(dash);
 
             // Monitor Online Statuses safely
             fbDb.parent.child('status').on('value', (snap) => {
@@ -1866,3 +1871,4 @@
 </body>
 
 </html>
+    
