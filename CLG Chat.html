@@ -2243,7 +2243,11 @@
         let hasMoreHistory = true;
 
         function subscribeGlobal() {
-            if (!fbDb) return;
+            if (!fbDb) {
+                // Firebase not ready yet — retry shortly
+                if (currentMode === 'global') setTimeout(subscribeGlobal, 200);
+                return;
+            }
             if (!subscribeGlobal._active) {
                 subscribeGlobal._active = true;
                 msgStoreGlobal = [];
@@ -2284,10 +2288,10 @@
         function unsubscribeGlobalListener() {
             if (fbDb) {
                 fbDb.off();
-                subscribeGlobal._active = false;
-                if(globalTypingRef) { globalTypingRef.off(); globalTypingRef = null; }
-                renderTyping({});
             }
+            subscribeGlobal._active = false;
+            if(globalTypingRef) { globalTypingRef.off(); globalTypingRef = null; }
+            renderTyping({});
         }
 
         // --- MESSAGING & EMBEDDING ---
