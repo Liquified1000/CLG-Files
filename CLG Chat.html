@@ -1119,9 +1119,9 @@
     <script>
         // --- SAFE STORAGE WRAPPER ---
         const memStore = {};
-        const safeGet = (k) => { try { return localStorage.getItem(k) || memStore[k] || ""; } catch (e) { return memStore[k] || ""; } };
-        const safeSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } memStore[k] = v; };
-        const safeClear = () => { try { try { localStorage.clear(); } catch (e) { } } catch (e) { } for (let k in memStore) delete memStore[k]; };
+        const safeGet = (k) => { try { if (typeof localStorage !== 'undefined' && localStorage) return localStorage.getItem(k) || memStore[k] || ""; } catch (e) { } return memStore[k] || ""; };
+        const safeSet = (k, v) => { try { if (typeof localStorage !== 'undefined' && localStorage) localStorage.setItem(k, v); } catch (e) { } memStore[k] = v; };
+        const safeClear = () => { try { if (typeof localStorage !== 'undefined' && localStorage) localStorage.clear(); } catch (e) { } for (let k in memStore) delete memStore[k]; };
 
         // --- CONFIG & STATE ---
         let myName = "";
@@ -1368,12 +1368,46 @@
             }, 3000);
         }
 
+        function initPresence() {
+            if (!fbDb || !myName) return;
+            try {
+                const safeName = myName.replace(/[\.\#\$\[\]]/g, '_');
+                const amOnline = firebase.database().ref('.info/connected');
+                const presRef = firebase.database().ref('status/' + safeName);
+                
+                amOnline.on('value', snap => {
+                    if (snap.val() === true) {
+                        presRef.onDisconnect().set({ state: 'offline', ts: firebase.database.ServerValue.TIMESTAMP });
+                        presRef.set({ state: 'online', ts: Date.now() });
+                        if (peer && !peer.destroyed && peer.id) {
+                            firebase.database().ref('users/' + safeName + '/peerId').set(peer.id);
+                        }
+                    }
+                });
+                
+                firebase.database().ref('typing/global').on('value', snap => {
+                    if (currentMode === 'global') renderTyping(snap.val());
+                });
+            } catch(e) { console.error("Presence Error", e); }
+        }
+
         // --- FIREBASE (GLOBAL) ---
         function initFirebase() {
             if (fbApp) return;
+            if (typeof firebase === 'undefined') {
+                setTimeout(initFirebase, 100);
+                return;
+            }
             try {
                 fbApp = firebase.initializeApp(firebaseConfig);
-                fbDb = firebase.database().ref('messages');
+                if (typeof firebase.database === 'function') {
+                    fbDb = firebase.database().ref('messages');
+                    const statusEl = document.getElementById('firebase-status');
+                    if (statusEl) statusEl.innerHTML = "<span style='color:#10b981'>Status: CONNECTED</span>";
+                    initPresence();
+                } else {
+                    setTimeout(initFirebase, 100);
+                }
             } catch (e) {
                 console.error("FB Init Fail", e);
             }
@@ -1453,7 +1487,8 @@
         if (isAdmin) updateAdminUI();
 
         joinBtn.onclick = () => {
-            const val = nameInput.value.trim();
+            let val = nameInput.value.trim();
+            if (val) val = val.replace(/[\.\#\$\[\]]/g, '_');
             const pwd = passInput.value.trim();
             if (val && pwd) {
                 const b64 = btoa(pwd);
@@ -1505,26 +1540,7 @@
             
             nameModal.classList.add('hidden');
             document.getElementById('user-display-name').innerText = myName + (isAdmin ? ' (ADMIN)' : '');
-            if (fbDb) {
-                // Online Presence
-                const amOnline = firebase.database().ref('.info/connected');
-                const presRef = firebase.database().ref('status/' + myName);
-                
-                amOnline.on('value', snap => {
-                    if (snap.val() === true) {
-                        presRef.onDisconnect().set({ state: 'offline', ts: firebase.database.ServerValue.TIMESTAMP });
-                        presRef.set({ state: 'online', ts: Date.now() });
-                        if (peer && !peer.destroyed && peer.id) {
-                            firebase.database().ref('users/' + myName + '/peerId').set(peer.id);
-                        }
-                    }
-                });
-                
-                // Monitor Global Typing Status
-                firebase.database().ref('typing/global').on('value', snap => {
-                    if (currentMode === 'global') renderTyping(snap.val());
-                });
-            }
+            initPresence();
             initSystem();
             updateOnlineMiniPfp();
             loadSettings();
@@ -3247,6 +3263,7 @@
             nameModal.classList.add('hidden');
             document.getElementById('user-display-name').innerText = myName + (isAdmin ? ' (ADMIN)' : '');
             initSystem();
+            initPresence();
         }
 
 
