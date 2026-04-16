@@ -6,7 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CLG Chat - Premium LAN & Global</title>
     <!-- PeerJS for LAN/P2P -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <!-- Firebase (Optional but supported) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
@@ -14,11 +16,36 @@
         :root {
             --primary: #8b5cf6;
             --primary-glow: rgba(139, 92, 246, 0.4);
-            --bg-dark: #0f0c29;
-            --glass: rgba(255, 255, 255, 0.03);
+            --glass-bg: rgba(20, 15, 40, 0.8);
             --glass-border: rgba(255, 255, 255, 0.1);
-            --text: #ffffff;
-            --text-dim: #94a3b8;
+            --text-dim: #9ca3af;
+            --app-font: 'Inter', sans-serif;
+            --msg-radius: 18px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            background-color: #0a0a0a;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: var(--app-font);
+            background-color: transparent;
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-size: var(--font-size, 15px);
+            transition: background 0.3s;
         }
 
         @keyframes gradientBG {
@@ -35,30 +62,38 @@
             }
         }
 
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        @keyframes pulseBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        body.bg-pulse {
             background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e, #2e0854, #0f0c29);
             background-size: 400% 400%;
-            animation: gradientBG 20s ease infinite;
-            color: var(--text);
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
+            animation: pulseBG 20s ease infinite;
         }
 
         #bg-canvas {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
             pointer-events: none;
-            z-index: 1;
-            opacity: 0.8;
+        }
+
+        #app-bg-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            background-size: cover;
+            background-position: center;
+            display: none;
         }
 
         /* Global Selectors */
@@ -74,7 +109,7 @@
             width: 98%;
             max-width: 1800px;
             height: 95vh;
-            background: var(--glass);
+            background: var(--glass-bg);
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
             border: 1px solid var(--glass-border);
@@ -105,6 +140,40 @@
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
+        }
+
+        .peer-tabs {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 10px;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+
+        .peer-tab {
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .peer-tab:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .peer-tab.active {
+            background: rgba(139, 92, 246, 0.2);
+            color: #fff;
+            font-weight: 600;
         }
 
         .mode-toggle {
@@ -192,114 +261,147 @@
             background: transparent;
         }
 
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-        }
-
         .message {
-            max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 18px;
+            max-width: 85%;
             position: relative;
             animation: fadeIn 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 12px;
+        }
+        
+        .message.grouped {
+            margin-top: -8px;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .message-content-wrapper {
+            padding: 10px 16px;
+            border-radius: var(--msg-radius, 18px);
+            position: relative;
+            min-width: 0;
+            word-break: break-word;
+            margin-top: 2px;
         }
 
         .message.received {
             align-self: flex-start;
+            align-items: flex-start;
+        }
+
+        .message.received .message-content-wrapper {
             background: rgba(255, 255, 255, 0.08);
-            border-bottom-left-radius: 4px;
+            border-top-left-radius: 4px;
         }
 
         .message.sent {
             align-self: flex-end;
-            background: var(--primary);
-            border-bottom-right-radius: 4px;
+            align-items: flex-end;
+        }
+
+        .message.sent .message-content-wrapper {
+            background: var(--primary, #8b5cf6);
+            border-top-right-radius: 4px;
             box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .msg-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #fff;
+            font-size: 1rem;
+            flex-shrink: 0;
+            background-size: cover;
+            background-position: center;
+            cursor: pointer;
         }
 
         .message-header {
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 4px;
+            align-items: center;
             gap: 10px;
-            flex-wrap: wrap;
+            width: 100%;
+            margin-bottom: 2px;
+        }
+
+        .message.sent .message-header {
+            flex-direction: row-reverse;
+        }
+
+        .message.grouped .message-header {
+            display: none;
         }
 
         .message .sender {
-            font-size: 0.75rem;
-            color: var(--text-dim);
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.85);
             font-weight: 600;
-            margin-bottom: 0px;
+            cursor: pointer;
+        }
+        
+        .message.sent .sender {
+            color: rgba(255, 255, 255, 0.9);
         }
 
-        .message.sent .sender {
-            color: rgba(255, 255, 255, 0.8);
+        .message .sender:hover {
+            text-decoration: underline;
         }
 
         .msg-timestamp {
             font-size: 0.68rem;
             color: rgba(255, 255, 255, 0.35);
             white-space: nowrap;
-            flex-shrink: 0;
-            align-self: flex-end;
-            margin-left: auto;
-            padding-left: 8px;
         }
+        
         .message.sent .msg-timestamp {
             color: rgba(255, 255, 255, 0.55);
         }
 
         .msg-actions {
-            display: none;
-            gap: 8px;
-            transition: all 0.2s;
-            align-items: center;
+            /* Relocated downward for global styling rules */
         }
 
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         .msg-actions.show-actions {
             display: flex;
         }
 
         .action-icon {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
             cursor: pointer;
-            font-size: 11px;
-            color: #c4b5fd;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 5px 10px;
-            border-radius: 6px;
-            font-weight: 600;
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
+            font-size: 0.95rem;
+            padding: 8px 12px;
+            border-radius: 6px;
             transition: all 0.2s;
         }
 
+        .action-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
         .action-icon:hover {
-            color: white;
-            background: rgba(139, 92, 246, 0.5);
-            border-color: #a78bfa;
-            transform: translateY(-1px);
+            color: #fff;
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.05);
         }
 
         .action-icon.del:hover {
-            background: rgba(239, 68, 68, 0.4);
-            border-color: #ef4444;
-            color: white;
+            color: #ef4444;
         }
 
         .message .content {
@@ -596,6 +698,49 @@
             background: #64748b;
         }
 
+        emoji-picker {
+            width: 100%;
+            height: 350px;
+            --background: transparent;
+        }
+
+        /* Support for Discord-like DMs */
+        .chat-messages {
+            padding-top: 15px; /* Prevent actions missing on first message */
+            padding-left: 10px;
+        }
+
+        /* Fixed Message Actions */
+        .msg-actions {
+            position: absolute;
+            top: -20px;
+            display: none;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 4px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 20;
+            gap: 4px;
+            animation: slideUp 0.15s ease-out forwards;
+            white-space: nowrap;
+        }
+
+        .message.received .msg-actions {
+            left: 0 !important;
+            right: auto !important;
+        }
+
+        .message.sent .msg-actions {
+            right: 0 !important;
+            left: auto !important;
+        }
+
+        .action-icon {
+            padding: 6px 8px;
+            border-radius: 4px;
+        }
+
         /* Mobile */
         @media (max-width: 768px) {
             .sidebar {
@@ -613,7 +758,7 @@
 </head>
 
 <body>
-
+    <div id="app-bg-image"></div>
     <canvas id="bg-canvas"></canvas>
 
     <!-- Name Modal -->
@@ -629,6 +774,12 @@
                 secure channels.</p>
             <input type="text" id="name-input" class="modal-input" placeholder="Your Username..." autofocus>
             <input type="password" id="pass-input" class="modal-input" placeholder="Password...">
+            <div style="display: flex; justify-content: flex-start; align-items: center; margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; cursor: pointer; color: var(--text-dim); font-size: 0.9rem;">
+                    <input type="checkbox" id="remember-me-chk" checked style="margin-right: 8px; accent-color: var(--primary);">
+                    Remember me
+                </label>
+            </div>
             <button id="join-btn" class="modal-btn">Sign In</button>
             <p id="login-error"
                 style="color: #ef4444; margin-top: 15px; display: none; font-size: 0.9rem; font-weight: bold;">Incorrect
@@ -659,47 +810,175 @@
         </div>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="text-align: left; padding: 30px;">
+    <div id="settings-modal" class="modal-overlay hidden" style="z-index: 100000;">
+        <div class="modal-content" style="text-align: left; padding: 30px; max-width: 600px; max-height: 85vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; font-size: 1.5rem;">Settings Engine</h3>
+                <h3 style="margin: 0; font-size: 1.5rem;">Global Engine Configuration</h3>
                 <button onclick="closeSettings()" style="background: transparent; border: none; color: var(--text-dim); cursor: pointer;">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             </div>
             
             <div style="margin-bottom: 20px;">
-                <label style="display: block; color: var(--text-dim); margin-bottom: 8px; font-weight: 600;">Theme Color</label>
-                <div style="display: flex; gap: 10px;">
-                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #8b5cf6; cursor: pointer;" onclick="changeColor('#8b5cf6', 'rgba(139, 92, 246, 0.4)')"></div>
-                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #ef4444; cursor: pointer;" onclick="changeColor('#ef4444', 'rgba(239, 68, 68, 0.4)')"></div>
-                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #10b981; cursor: pointer;" onclick="changeColor('#10b981', 'rgba(16, 185, 129, 0.4)')"></div>
-                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #f59e0b; cursor: pointer;" onclick="changeColor('#f59e0b', 'rgba(245, 158, 11, 0.4)')"></div>
-                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #3b82f6; cursor: pointer;" onclick="changeColor('#3b82f6', 'rgba(59, 130, 246, 0.4)')"></div>
-                    <div style="width: 30px; height: 30px; border-radius: 50%; background: #fb7185; cursor: pointer;" onclick="changeColor('#fb7185', 'rgba(251, 113, 133, 0.4)')"></div>
+                <label style="display: block; color: var(--text-dim); margin-bottom: 8px; font-weight: 600;">Profile Picture</label>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <div id="setting-pfp-preview" class="msg-avatar" style="width: 50px; height: 50px; font-size:1.5rem;">?</div>
+                    <input type="file" id="setting-pfp-input" accept="image/*" style="display: none;">
+                    <button class="mode-btn" style="flex:1; background:rgba(0,0,0,0.3);" onclick="document.getElementById('setting-pfp-input').click()">Upload Image</button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: var(--text-dim); margin-bottom: 8px; font-weight: 600;">Bio</label>
+                <textarea id="setting-bio" class="admin-input" placeholder="Tell us about yourself..." rows="2" maxlength="200" style="resize:none; padding:10px; margin:0;"></textarea>
+            </div>
+
+            <hr style="border-color: rgba(255,255,255,0.1); margin: 25px 0;">
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: var(--text-dim); margin-bottom: 8px; font-weight: 600;">Custom Background Image</label>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <div id="setting-bg-preview" style="width: 50px; height: 50px; border-radius: 8px; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); background-size: cover; background-position: center;"></div>
+                    <input type="file" id="setting-bgimage-input" accept="image/*" style="display: none;">
+                    <button class="mode-btn" style="flex:1; background:rgba(0,0,0,0.3);" onclick="document.getElementById('setting-bgimage-input').click()">Upload Wallpaper</button>
+                    <button class="mode-btn" style="background:rgba(239, 68, 68, 0.3); color:#fff;" onclick="clearBackgroundImage()">Clear</button>
                 </div>
             </div>
 
             <div style="margin-bottom: 20px;">
-                <label style="display: block; color: var(--text-dim); margin-bottom: 8px; font-weight: 600;">Text Scaling</label>
-                <select id="setting-text" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); border-radius: 8px; outline: none; cursor: pointer;" onchange="updateSettings()">
-                    <option value="13px">Small</option>
-                    <option value="15px" selected>Normal</option>
-                    <option value="18px">Large</option>
-                </select>
+                <label style="display: block; color: var(--text-dim); margin-bottom: 8px; font-weight: 600;">Primary Accent Color</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="color" id="setting-primary-color" value="#8b5cf6" style="width: 60px; height: 40px; border: none; border-radius: 8px; background: transparent; cursor: pointer; padding: 0;">
+                    <span style="font-size: 0.8rem; color: var(--text-dim);">Pick a custom hex color for your bubbles and UI elements.</span>
+                </div>
             </div>
 
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; color: var(--text-dim); margin-bottom: 8px; font-weight: 600;">Background Design</label>
-                <select id="setting-bg" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border); border-radius: 8px; outline: none; cursor: pointer;" onchange="updateSettings()">
-                    <option value="particles" selected>Particle Network (Interactive)</option>
-                    <option value="pulse">Pulse Gradient (Smooth)</option>
-                    <option value="dark">Solid Pitch Black (Fastest)</option>
-                </select>
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; color: var(--text-dim); margin-bottom: 12px; font-weight: 600;">Layout & Styling</label>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="font-size: 0.9rem;">Font Family</span>
+                    <select id="setting-font" class="admin-input" style="width: 200px; margin: 0; padding: 6px;">
+                        <option value="'Inter', sans-serif">Inter (Modern)</option>
+                        <option value="'Roboto', sans-serif">Roboto</option>
+                        <option value="'Courier New', monospace">Monospace</option>
+                        <option value="system-ui, -apple-system, sans-serif">System Native</option>
+                        <option value="'Comic Sans MS', cursive">Comic Sans</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="font-size: 0.9rem;">App Opacity (Glass)</span>
+                    <input type="range" id="setting-glass-op" min="10" max="100" value="80" style="width: 200px;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="font-size: 0.9rem;">Bubble Roundness</span>
+                    <input type="range" id="setting-radius" min="0" max="30" value="18" style="width: 200px;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="font-size: 0.9rem;">Interactive Base</span>
+                    <select id="setting-interactive-bg" class="admin-input" style="width: 200px; margin: 0; padding: 6px;">
+                        <option value="particles">Constellation Network</option>
+                        <option value="pulse">Pulse Gradient</option>
+                        <option value="matrix">Matrix Rain</option>
+                        <option value="none">Solid Pitch Black</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="font-size: 0.9rem;">Base Text Size</span>
+                    <select id="setting-text" class="admin-input" style="width: 200px; margin: 0; padding: 6px;">
+                        <option value="13px">Compact (13px)</option>
+                        <option value="15px">Normal (15px)</option>
+                        <option value="18px">Large (18px)</option>
+                    </select>
+                </div>
+            </div>
+
+            <hr style="border-color: rgba(255,255,255,0.1); margin: 25px 0;">
+            <button onclick="resetSettingsToDefault()" class="modal-btn" style="width: 100%; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; margin-bottom: 10px;">Restore Default Settings</button>
+            <button onclick="saveSettingsToFirebase()" class="modal-btn" style="margin-top: 10px; width: 100%;">Sync Configuration</button>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profile-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="text-align: center; padding: 40px; position:relative;">
+            <button onclick="document.getElementById('profile-modal').classList.add('hidden')" style="position:absolute; top:20px; right:20px; background:transparent; border:none; color:var(--text-dim); cursor:pointer;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <div id="profile-pfp" class="msg-avatar" style="width: 100px; height: 100px; font-size: 3.5rem; margin: 0 auto 20px auto; border-radius: 50%;">?</div>
+            <h3 id="profile-name" style="margin: 0; font-size: 1.8rem; margin-bottom: 10px;">Username</h3>
+            <p id="profile-bio" style="color: var(--text-dim); margin-bottom: 25px; font-size: 0.95rem; white-space: pre-wrap; word-break: break-word;">No bio yet.</p>
+            <div style="display:flex; gap:10px;">
+                <button id="profile-msg-btn" class="modal-btn" style="display:none; flex:1;">Message</button>
+                <button id="profile-call-btn" class="modal-btn" style="display:none; flex:1; background:rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #10b981; transition: 0.2s;">
+                    <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                        Call
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call Overlay Modals -->
+    <div id="incoming-call-modal" class="modal-overlay hidden" style="z-index: 100000;">
+        <div class="modal-content" style="text-align: center; padding: 40px; border: 1px solid #10b981; box-shadow: 0 0 40px rgba(16, 185, 129, 0.4);">
+            <div id="incoming-call-pfp" class="msg-avatar" style="width: 80px; height: 80px; font-size: 2.5rem; margin: 0 auto 20px auto; border-radius: 50%;">?</div>
+            <h3 id="incoming-call-name" style="margin: 0; font-size: 1.5rem; margin-bottom: 25px;">...</h3>
+            <p style="color: var(--text-dim); margin-bottom: 25px;">Incoming Voice Call...</p>
+            <div style="display: flex; gap: 15px;">
+                <button id="btn-accept-call" class="modal-btn" style="background: #10b981; flex: 1;">Accept</button>
+                <button id="btn-decline-call" class="modal-btn" style="background: #ef4444; flex: 1;">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="active-call-ui" class="hidden" style="position: fixed; top: 30px; left: 50%; transform: translateX(-50%); width: auto; min-width: 300px; background: rgba(15, 10, 30, 0.95); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 40px; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.6), 0 0 20px rgba(139, 92, 246, 0.2); z-index: 99999; display: flex; align-items: center; padding: 8px 16px; gap: 15px; backdrop-filter: blur(15px);">
+        <video id="remote-video" autoplay playsinline style="display:none;"></video>
+        <video id="local-video" autoplay playsinline muted style="display:none;"></video>
+
+        <div style="display: flex; align-items: center; gap: 12px; flex-grow: 1;">
+            <div class="msg-avatar" style="width: 42px; height: 42px; font-size: 1.2rem; border-radius: 50%; background: rgba(139, 92, 246, 0.2); border: 1px solid var(--primary); display: flex; align-items: center; justify-content: center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <span id="call-active-name" style="font-weight: 600; font-size: 0.95rem; color: #fff;">Voice Call</span>
+                <span id="call-status-badge" style="font-size: 0.75rem; color: #10b981;">Calling...</span>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="btn-toggle-mic" title="Mute Mic" style="background: rgba(255,255,255,0.1); border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; color: white; transition: all 0.2s; border: none; cursor: pointer;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+            </button>
+            <button id="btn-end-call" title="End Call" style="background: #ef4444; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; color: white; transition: all 0.2s; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- GIF Library Modal -->
+    <div id="gif-library-modal" class="modal-overlay hidden" style="z-index: 100000;">
+        <div class="modal-content" style="padding: 25px; width: 500px; max-width: 90vw;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 1.5rem;">Global GIF Library</h3>
+                <button onclick="document.getElementById('gif-library-modal').classList.add('hidden')" style="background: transparent; border: none; color: var(--text-dim); cursor: pointer;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
             </div>
             
-            <button onclick="saveSettingsToFirebase()" class="modal-btn" style="margin-top: 10px;">Sync Profile</button>
+            <div id="gif-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+                <p style="color:var(--text-dim); grid-column: 1/-1; text-align:center;">Loading GIFs...</p>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <input type="file" id="gif-upload-input" accept="image/gif" style="display: none;">
+                <button class="mode-btn" style="flex:1; background:rgba(0,0,0,0.3);" onclick="document.getElementById('gif-upload-input').click()">Upload New GIF</button>
+            </div>
         </div>
     </div>
 
@@ -711,7 +990,7 @@
 
             <div class="mode-toggle">
                 <button id="mode-lan" class="mode-btn active">LAN / P2P</button>
-                <button id="mode-global" class="mode-btn">GLOBAL</button>
+                <button id="mode-online" class="mode-btn">ONLINE</button>
             </div>
 
             <div id="lan-info" class="room-info">
@@ -740,10 +1019,28 @@
                 </div>
             </div>
 
-            <div id="global-info" class="room-info hidden">
-                <p style="margin-top:0"><strong>Global Mode</strong></p>
-                <p id="firebase-status" style="font-size: 0.8rem; color: var(--text-dim);">Firebase not configured.
-                    Check source code to add keys.</p>
+            <div id="online-info" class="room-info hidden">
+                <p style="margin-top:0; display:flex; align-items:center; gap:10px;">
+                    <span id="online-pfp-mini" class="msg-avatar" style="width:28px; height:28px; font-size:1rem; border-radius:50%;">?</span>
+                    <strong>Online Hub</strong>
+                </p>
+                <p id="firebase-status" style="font-size: 0.8rem; color: var(--text-dim); margin-bottom:15px;">Connecting...</p>
+
+                <div class="mode-toggle" style="background:rgba(0,0,0,0.4); margin-bottom:10px;">
+                    <button id="tab-global-chat" class="mode-btn active" style="padding: 6px;">Global</button>
+                    <button id="tab-dms-list" class="mode-btn" style="padding: 6px;">DMs & Friends</button>
+                </div>
+
+                <div id="online-global-container">
+                    <p style="font-size: 0.8rem; color: var(--text-dim);">You are in the main public channel.</p>
+                </div>
+
+                <div id="online-dms-container" class="hidden">
+                    <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 5px;">Active DMs:</p>
+                    <div id="dm-tabs" class="peer-tabs">
+                        <div class="peer-tab" id="no-dms-tab" style="pointer-events: none; opacity: 0.5;">No active DMs</div>
+                    </div>
+                </div>
             </div>
 
             <div style="margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between;">
@@ -762,7 +1059,7 @@
         </div>
 
         <!-- Chat Area -->
-        <div class="chat-main">
+        <div class="chat-main" style="position: relative;">
             <div id="chat-messages" class="chat-messages">
                 <!-- Messages will appear here -->
             </div>
@@ -779,6 +1076,15 @@
                     style="background: rgba(0,0,0,0.3); border: none; color: #ef4444; cursor: pointer; font-weight: bold; border-radius: 6px; padding: 4px 8px; font-size: 0.75rem;">CANCEL</button>
             </div>
 
+            <div id="typing-indicator" style="font-size: 0.8rem; color: #a78bfa; margin-bottom: 8px; height: 16px; opacity: 0; transition: opacity 0.2s; margin-left: 5px;">
+                <span id="typing-text">Someone is typing...</span>
+            </div>
+
+            <div id="attachment-preview-container" class="hidden" style="background: rgba(0,0,0,0.4); margin: 10px 0; padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border); position: relative; width: fit-content; margin-left:12px;">
+                <img id="attachment-preview-img" src="" style="max-height: 150px; border-radius: 8px;" />
+                <button onclick="clearAttachment()" style="position: absolute; top: -10px; right: -10px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">X</button>
+            </div>
+
             <div class="chat-input-area">
                 <button id="attach-btn" class="send-btn"
                     style="background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1);"
@@ -792,6 +1098,8 @@
                 </button>
                 <input type="file" id="file-input" accept="image/*" style="display: none;">
 
+                <button id="gif-library-btn" class="action-icon" style="background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); font-weight:bold; font-size: 0.75rem; padding: 10px; border-radius: 8px;" title="GIF Library">GIF</button>
+
                 <textarea id="chat-msg-input" class="chat-input"
                     placeholder="Type a message... (Shift+Enter for new line)" rows="1" maxlength="2000"></textarea>
                 <button id="send-btn" class="send-btn">
@@ -801,6 +1109,11 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- Reaction Picker Overlay -->
+    <div id="reaction-picker" class="hidden" style="position:fixed; background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:12px; z-index:99999; box-shadow:0 10px 40px rgba(0,0,0,0.8); pointer-events: auto; overflow: hidden; max-height: 400px; display: flex;">
+        <emoji-picker class="dark"></emoji-picker>
     </div>
 
     <script>
@@ -864,6 +1177,7 @@
         let msgStoreGlobal = [];
         let replyingToId = null;
         let replyingToMsg = null;
+        window._lastRenderedMessage = null;
 
         function _formatTimestamp(ts) {
             if (!ts) return '';
@@ -876,51 +1190,64 @@
             return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + time;
         }
 
-        // --- CANVAS BACKGROUND (PARTICLE NETWORK) ---
-        const canvas = document.getElementById('bg-canvas');
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            let mouse = { x: -1000, y: -1000 };
-            let targetMouse = { x: -1000, y: -1000 };
-            let particles = [];
+        // --- BACKGROUND EFFECTS ENGINE ---
+        window.particlesLoaded = false;
+        window.bgMode = 'particles';
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Background is bootstrapped by applySettings()
+        });
 
-            function initParticles() {
-                particles = [];
-                const numParticles = Math.floor((canvas.width * canvas.height) / 12000);
-                for (let i = 0; i < numParticles; i++) {
-                    particles.push({
-                        x: Math.random() * canvas.width, y: Math.random() * canvas.height,
-                        vx: (Math.random() - 0.5) * 0.7, vy: (Math.random() - 0.5) * 0.7,
-                        baseRadius: Math.random() * 1.5 + 0.8
-                    });
-                }
+        function initParticlesCode() {
+            const canvas = document.getElementById('bg-canvas');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const particleCount = 100;
+            const connectionDistance = 150;
+
+            const mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+            const targetMouse = { x: canvas.width / 2, y: canvas.height / 2 };
+
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 1,
+                    vy: (Math.random() - 0.5) * 1,
+                    baseRadius: Math.random() * 1.5 + 0.8
+                });
             }
+            window.particlesLoaded = true;
 
             function resizeCanvas() {
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
-                initParticles();
             }
-            window.addEventListener('resize', resizeCanvas);
-            resizeCanvas();
 
-            window.addEventListener('mousemove', (e) => {
+            window.addEventListener('resize', resizeCanvas);
+            document.addEventListener('mousemove', (e) => {
                 targetMouse.x = e.clientX;
                 targetMouse.y = e.clientY;
             });
-            window.addEventListener('mouseout', () => {
-                targetMouse.x = -1000;
-                targetMouse.y = -1000;
-            });
 
             function drawParticles() {
+                if(window.bgMode !== 'particles') return;
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 mouse.x += (targetMouse.x - mouse.x) * 0.05;
                 mouse.y += (targetMouse.y - mouse.y) * 0.05;
 
-                for (let i = 0; i < particles.length; i++) {
-                    let p = particles[i];
-                    p.x += p.vx; p.y += p.vy;
+                ctx.fillStyle = userSettings.color || '#a78bfa';
+                ctx.strokeStyle = userSettings.color || '#a78bfa';
+
+                for (let i = 0; i < particleCount; i++) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+
                     if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
                     if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
 
@@ -938,16 +1265,21 @@
                         p.y -= dy * 0.015 * intensity;
                     }
 
-                    for (let j = i + 1; j < particles.length; j++) {
-                        let p2 = particles[j];
-                        let dx2 = p.x - p2.x; let dy2 = p.y - p2.y;
-                        let distToP2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
-                        if (distToP2 < 100) {
-                            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y);
-                            let lineOpacity = (1 - distToP2 / 100) * 0.1;
-                            if (distToMouse < 220) lineOpacity += (1 - distToMouse / 220) * 0.25;
-                            ctx.strokeStyle = `rgba(167, 139, 250, ${lineOpacity})`;
-                            ctx.lineWidth = 1; ctx.stroke();
+                    for (let j = i + 1; j < particleCount; j++) {
+                        const p2 = particles[j];
+                        const dx2 = p.x - p2.x;
+                        const dy2 = p.y - p2.y;
+                        const distance = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+                        if (distance < connectionDistance) {
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            const lineOpacity = (1 - (distance / connectionDistance)) * 0.2 + (distToMouse < 220 ? (1 - distToMouse / 220) * 0.25 : 0);
+                            let hex = userSettings.color || '#a78bfa';
+                            ctx.strokeStyle = hexToRgba(hex, lineOpacity);
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
                         }
                     }
 
@@ -959,6 +1291,58 @@
                 requestAnimationFrame(drawParticles);
             }
             drawParticles();
+        }
+
+        function initMatrixCode() {
+            const canvas = document.getElementById('bg-canvas');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()";
+            const fontSize = 14;
+            const columns = canvas.width / fontSize;
+            window.matrixDrops = [];
+            for(let x = 0; x < columns; x++) {
+                window.matrixDrops[x] = 1;
+            }
+            
+            function drawMatrix() {
+                if(window.bgMode !== 'matrix') return;
+                ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#0F0"; 
+                ctx.font = fontSize + "px monospace";
+                for(let i = 0; i < window.matrixDrops.length; i++) {
+                    const text = characters.charAt(Math.floor(Math.random() * characters.length));
+                    ctx.fillText(text, i * fontSize, window.matrixDrops[i] * fontSize);
+                    if(window.matrixDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        window.matrixDrops[i] = 0;
+                    }
+                    window.matrixDrops[i]++;
+                }
+                setTimeout(() => requestAnimationFrame(drawMatrix), 30);
+            }
+            drawMatrix();
+        }
+
+        function triggerBgEngine() {
+            const canvas = document.getElementById('bg-canvas');
+            document.body.classList.remove('bg-pulse');
+            document.body.style.backgroundColor = (window.bgMode === 'none' && userSettings.bgImage) ? 'transparent' : '#0a0a0a';
+            if(window.bgMode === 'pulse') {
+                document.body.classList.add('bg-pulse');
+                if(canvas) canvas.style.display = 'none';
+            } else if(window.bgMode === 'matrix') {
+                if(canvas) canvas.style.display = 'block';
+                initMatrixCode();
+            } else if(window.bgMode === 'particles') {
+                if(canvas) canvas.style.display = 'block';
+                initParticlesCode();
+            } else {
+                if(canvas) canvas.style.display = 'none';
+            }
         }
 
         // --- CUSTOM TOAST NOTIFICATIONS ---
@@ -997,21 +1381,34 @@
         // Initialize early for auth
         initFirebase();
 
-        // --- FILE COMPRESSION STRATEGY ---
+        let activeAttachmentBase64 = null;
+
+        window.clearAttachment = function() {
+            activeAttachmentBase64 = null;
+            document.getElementById('attachment-preview-container').classList.add('hidden');
+            document.getElementById('attachment-preview-img').src = "";
+        };
+
         const fileInput = document.getElementById('file-input');
         document.getElementById('attach-btn').onclick = () => fileInput.click();
 
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            // Compress Image
             const reader = new FileReader();
             reader.onload = (event) => {
+                if (file.type === 'image/gif') {
+                    activeAttachmentBase64 = event.target.result;
+                    document.getElementById('attachment-preview-img').src = activeAttachmentBase64;
+                    document.getElementById('attachment-preview-container').classList.remove('hidden');
+                    msgInput.focus();
+                    return;
+                }
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     let width = img.width, height = img.height;
-                    const maxSize = 800; // compression boundary
+                    const maxSize = 800;
 
                     if (width > height && width > maxSize) { height *= maxSize / width; width = maxSize; }
                     else if (height > maxSize) { width *= maxSize / height; height = maxSize; }
@@ -1020,13 +1417,16 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    const base64Str = canvas.toDataURL('image/jpeg', 0.82); // High efficiency
-                    sendMediaMessage(base64Str, true);
+                    activeAttachmentBase64 = canvas.toDataURL('image/jpeg', 0.82); 
+                    
+                    document.getElementById('attachment-preview-img').src = activeAttachmentBase64;
+                    document.getElementById('attachment-preview-container').classList.remove('hidden');
+                    msgInput.focus();
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
-            e.target.value = ""; // reset
+            e.target.value = ""; 
         });
 
         // --- AUTH & INITIALIZATION ---
@@ -1052,12 +1452,6 @@
 
         if (isAdmin) updateAdminUI();
 
-        if (myName) {
-            nameModal.classList.add('hidden');
-            document.getElementById('user-display-name').innerText = myName + (isAdmin ? ' (ADMIN)' : '');
-            initSystem();
-        }
-
         joinBtn.onclick = () => {
             const val = nameInput.value.trim();
             const pwd = passInput.value.trim();
@@ -1066,12 +1460,12 @@
                 loginErr.style.display = 'none';
 
                 if (!fbDb) {
-                    // Fallback
+                    // Fallback local only LAN mode
                     loginSuccess(val);
                     return;
                 }
 
-                firebase.database().ref('users/' + val).once('value', snap => {
+                firebase.database().ref('users/' + val).once('value').then(snap => {
                     const u = snap.val();
                     if (!u) {
                         if (authMode === 'login') {
@@ -1091,82 +1485,226 @@
                         }
                     }
                 }).catch(e => {
-                    loginSuccess(val);
+                    loginErr.innerText = "Connection error. Trying again..."; 
+                    loginErr.style.display = 'block';
+                    console.error("Auth error", e);
                 });
             }
         };
 
         function loginSuccess(mName) {
             myName = mName;
-            safeSet('clg_name', myName);
+            
+            const rememberMe = document.getElementById('remember-me-chk').checked;
+            if (rememberMe) {
+                safeSet('clg_name', myName);
+            } else {
+                memStore['clg_name'] = myName;
+                try { localStorage.removeItem('clg_name'); } catch(e){}
+            }
+            
             nameModal.classList.add('hidden');
             document.getElementById('user-display-name').innerText = myName + (isAdmin ? ' (ADMIN)' : '');
             if (fbDb) {
                 // Online Presence
+                const amOnline = firebase.database().ref('.info/connected');
                 const presRef = firebase.database().ref('status/' + myName);
-                presRef.set({ state: 'online', ts: Date.now() });
-                presRef.onDisconnect().set({ state: 'offline', ts: firebase.database.ServerValue.TIMESTAMP });
+                
+                amOnline.on('value', snap => {
+                    if (snap.val() === true) {
+                        presRef.onDisconnect().set({ state: 'offline', ts: firebase.database.ServerValue.TIMESTAMP });
+                        presRef.set({ state: 'online', ts: Date.now() });
+                        if (peer && !peer.destroyed && peer.id) {
+                            firebase.database().ref('users/' + myName + '/peerId').set(peer.id);
+                        }
+                    }
+                });
+                
+                // Monitor Global Typing Status
+                firebase.database().ref('typing/global').on('value', snap => {
+                    if (currentMode === 'global') renderTyping(snap.val());
+                });
             }
             initSystem();
+            updateOnlineMiniPfp();
             loadSettings();
+        }
+
+        function updateOnlineMiniPfp() {
+            const mini = document.getElementById('online-pfp-mini');
+            if(!mini) return;
+            const pfpColor = getAvatarColor(myName);
+            const cacheKey = 'clg_pfp_' + myName;
+            const cachedPfp = sessionStorage.getItem(cacheKey) || memStore[cacheKey];
+            
+            mini.innerHTML = myName ? myName.charAt(0).toUpperCase() : '?';
+            mini.style.backgroundColor = pfpColor;
+            mini.style.backgroundImage = 'none';
+            if (cachedPfp && cachedPfp.startsWith('data:')) {
+                mini.innerHTML = '';
+                mini.style.backgroundImage = `url('${cachedPfp}')`;
+                mini.style.backgroundSize = 'cover';
+                mini.style.backgroundPosition = 'center';
+            }
         }
 
         function initSystem() {
             initPeer();
-            renderTabs();
-            renderMessages();
-            if (isAdmin) buildAdminDashboard();
+            
+            // Default to Global Mode on startup
+            currentMode = 'global';
+            setTimeout(() => {
+                const onlineBtn = document.getElementById('mode-online');
+                const globalTab = document.getElementById('tab-global-chat');
+                if (onlineBtn) onlineBtn.click();
+                if (globalTab) globalTab.click();
+            }, 100);
+
+            updateOnlineMiniPfp();
+            loadSettings();
+        }
+
+        function applySettings() {
+            document.documentElement.style.setProperty('--primary', userSettings.color);
+            document.documentElement.style.setProperty('--primary-glow', userSettings.glow || hexToRgba(userSettings.color, 0.4));
+            document.documentElement.style.setProperty('--font-size', userSettings.fontSize);
+            document.documentElement.style.setProperty('--app-font', userSettings.fontFamily || "'Inter', sans-serif");
+            document.documentElement.style.setProperty('--msg-radius', userSettings.borderRadius || "18px");
+            
+            let op = userSettings.glassOpacity !== undefined ? userSettings.glassOpacity / 100 : 0.8;
+            document.documentElement.style.setProperty('--glass-bg', `rgba(20, 15, 40, ${op})`);
+
+            if (userSettings.bgImage) {
+                const bgLayer = document.getElementById('app-bg-image');
+                bgLayer.style.backgroundImage = `url('${userSettings.bgImage}')`;
+                bgLayer.style.display = 'block';
+                window.bgMode = 'none';
+                triggerBgEngine();
+            } else {
+                document.getElementById('app-bg-image').style.display = 'none';
+                window.bgMode = userSettings.interactiveBg || 'particles';
+                triggerBgEngine();
+            }
         }
 
         // --- SETTINGS ENGINE ---
-        let userSettings = { color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.4)', fontSize: '15px', bgType: 'particles' };
+        let userSettings = { 
+            color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.4)', fontSize: '15px', 
+            bio: '', pfp: '', bgImage: '', fontFamily: "'Inter', sans-serif", 
+            glassOpacity: 80, borderRadius: '18px', interactiveBg: 'particles'
+        };
         
+        function hexToRgba(hex, alpha) {
+            let r = parseInt(hex.slice(1, 3), 16),
+                g = parseInt(hex.slice(3, 5), 16),
+                b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
         function openSettings() {
             document.getElementById('settings-modal').classList.remove('hidden');
             document.getElementById('setting-text').value = userSettings.fontSize || '15px';
-            document.getElementById('setting-bg').value = userSettings.bgType || 'particles';
+            document.getElementById('setting-bio').value = userSettings.bio || '';
+            document.getElementById('setting-primary-color').value = userSettings.color || '#8b5cf6';
+            document.getElementById('setting-font').value = userSettings.fontFamily || "'Inter', sans-serif";
+            document.getElementById('setting-glass-op').value = userSettings.glassOpacity !== undefined ? userSettings.glassOpacity : 80;
+            document.getElementById('setting-radius').value = userSettings.borderRadius ? parseInt(userSettings.borderRadius) : 18;
+            document.getElementById('setting-interactive-bg').value = userSettings.interactiveBg || 'particles';
+
+            const preview = document.getElementById('setting-pfp-preview');
+            const pfpColor = getAvatarColor(myName);
+            if (userSettings.pfp) {
+                preview.innerHTML = '';
+                preview.style.backgroundImage = `url('${userSettings.pfp}')`;
+                preview.style.backgroundSize = 'cover';
+                preview.style.backgroundPosition = 'center';
+            } else {
+                preview.innerHTML = myName ? myName.charAt(0).toUpperCase() : '?';
+                preview.style.backgroundColor = pfpColor;
+                preview.style.backgroundImage = 'none';
+            }
+
+            const bgPreview = document.getElementById('setting-bg-preview');
+            if (userSettings.bgImage) {
+                bgPreview.style.backgroundImage = `url('${userSettings.bgImage}')`;
+                bgPreview.innerHTML = '';
+            } else {
+                bgPreview.style.backgroundImage = 'none';
+                bgPreview.innerHTML = '<span style="font-size:0.7rem; color:#aaa; display:block; text-align:center; padding-top:10px;">None</span>';
+            }
         }
+        
+        // PFP Image Compression
+        const settingPfpInput = document.getElementById('setting-pfp-input');
+        settingPfpInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width, height = img.height;
+                    const maxSize = 256; 
+                    if (width > height && width > maxSize) { height *= maxSize / width; width = maxSize; }
+                    else if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const base64Str = canvas.toDataURL('image/jpeg', 0.7);
+                    userSettings.pfp = base64Str;
+                    openSettings(); // refreshes preview
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+        
+        const settingBgInput = document.getElementById('setting-bgimage-input');
+        settingBgInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width, height = img.height;
+                    const maxSize = 1200; 
+                    if (width > height && width > maxSize) { height *= maxSize / width; width = maxSize; }
+                    else if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    userSettings.bgImage = canvas.toDataURL('image/jpeg', 0.6);
+                    openSettings(); 
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        window.clearBackgroundImage = function() {
+            userSettings.bgImage = '';
+            openSettings();
+        };
+
         function closeSettings() {
             document.getElementById('settings-modal').classList.add('hidden');
         }
         
-        function changeColor(hex, glow) {
-            userSettings.color = hex;
-            userSettings.glow = glow;
-            applySettings();
-        }
+        window.resetSettingsToDefault = function() {
+            if(!confirm("Are you sure you want to completely wipe your configuration to factory defaults?")) return;
+            userSettings = { 
+                color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.4)', fontSize: '15px', 
+                bio: '', pfp: '', bgImage: '', fontFamily: "'Inter', sans-serif", 
+                glassOpacity: 80, borderRadius: '18px', interactiveBg: 'particles'
+            };
+            document.getElementById('setting-bgimage-input').value = "";
+            saveSettingsToFirebase();
+        };
         
-        function updateSettings() {
-            userSettings.fontSize = document.getElementById('setting-text').value;
-            userSettings.bgType = document.getElementById('setting-bg').value;
-            applySettings();
-        }
-        
-        function applySettings() {
-            document.documentElement.style.setProperty('--primary', userSettings.color);
-            document.documentElement.style.setProperty('--primary-glow', userSettings.glow);
-            document.body.style.fontSize = userSettings.fontSize;
 
-            const bgCanvas = document.getElementById('bg-canvas');
-            if (userSettings.bgType === 'none' || userSettings.bgType === 'dark') {
-                if(bgCanvas) bgCanvas.style.display = 'none';
-                document.body.style.background = '#06060c';
-                document.body.style.animation = 'none';
-            } else if (userSettings.bgType === 'pulse') {
-                if(bgCanvas) bgCanvas.style.display = 'none';
-                document.body.style.background = 'linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e, #2e0854, #0f0c29)';
-                document.body.style.backgroundSize = '400% 400%';
-                document.body.style.animation = 'gradientBG 20s ease infinite';
-            } else {
-                if(bgCanvas) bgCanvas.style.display = 'block';
-                document.body.style.background = 'linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e, #2e0854, #0f0c29)';
-                document.body.style.backgroundSize = '400% 400%';
-                document.body.style.animation = 'gradientBG 20s ease infinite';
-            }
-            
-            // Re-render UI to apply font scale immediately
-            renderMessages();
-        }
 
         function loadSettings() {
             let s = null;
@@ -1178,6 +1716,10 @@
                     if (snap.val()) {
                         userSettings = { ...userSettings, ...snap.val() };
                         try { localStorage.setItem('clg_settings_' + myName, JSON.stringify(userSettings)); } catch(e){}
+                        if(userSettings.pfp) {
+                            sessionStorage.setItem('clg_pfp_' + myName, userSettings.pfp);
+                            memStore['clg_pfp_' + myName] = userSettings.pfp;
+                        }
                         applySettings();
                     }
                 });
@@ -1185,16 +1727,114 @@
         }
 
         function saveSettingsToFirebase() {
+            userSettings.bio = document.getElementById('setting-bio').value.trim();
+            userSettings.color = document.getElementById('setting-primary-color').value;
+            userSettings.glow = hexToRgba(userSettings.color, 0.4);
+            userSettings.fontFamily = document.getElementById('setting-font').value;
+            userSettings.glassOpacity = document.getElementById('setting-glass-op').value;
+            userSettings.borderRadius = document.getElementById('setting-radius').value + 'px';
+            userSettings.fontSize = document.getElementById('setting-text').value;
+            userSettings.interactiveBg = document.getElementById('setting-interactive-bg').value;
+
+            if(userSettings.pfp) {
+                sessionStorage.setItem('clg_pfp_' + myName, userSettings.pfp);
+                memStore['clg_pfp_' + myName] = userSettings.pfp;
+            }
             try { localStorage.setItem('clg_settings_' + myName, JSON.stringify(userSettings)); } catch(e){}
             if(fbDb && myName) {
                 firebase.database().ref('users/' + myName + '/settings').set(userSettings).then(() => {
-                    showNotification("Profile settings synchronized via Firebase.", "success");
-                }).catch(e => showNotification("Local save only. " + e.message, "info"));
+                    showNotification("Configuration synchronized.", "success");
+                    applySettings();
+                    renderMessages(); 
+                }).catch(e => {
+                    showNotification("Local save only. " + e.message, "info");
+                    applySettings();
+                });
             } else {
                 showNotification("Settings saved locally.", "success");
+                applySettings();
+                renderMessages(); 
             }
             closeSettings();
         }
+
+        // --- PROFILE VISUALS ---
+        window.openProfile = function(username) {
+            if(!username) return;
+            const pModal = document.getElementById('profile-modal');
+            const pName = document.getElementById('profile-name');
+            const pBio = document.getElementById('profile-bio');
+            const pPfp = document.getElementById('profile-pfp');
+            const pMsgBtn = document.getElementById('profile-msg-btn');
+            
+            pName.innerHTML = `${username} <span id="profile-status-dot" class="status-dot status-off" style="width:14px; height:14px; display:inline-block; margin-left:5px; margin-bottom: 2px;"></span>`;
+            pBio.innerText = "Loading...";
+            pPfp.innerHTML = username.charAt(0).toUpperCase();
+            pPfp.style.backgroundColor = getAvatarColor(username);
+            pPfp.style.backgroundImage = 'none';
+            pModal.classList.remove('hidden');
+
+            const pCallBtn = document.getElementById('profile-call-btn');
+            
+            pMsgBtn.style.display = (username !== myName) ? 'inline-block' : 'none';
+            pMsgBtn.onclick = () => {
+                pModal.classList.add('hidden');
+                openDM(username);
+            };
+
+            if (username !== myName && peer && !username.includes('_')) {
+                pCallBtn.style.display = 'inline-block';
+                pCallBtn.onclick = () => {
+                    pModal.classList.add('hidden');
+                    startCallAction(username);
+                };
+            } else {
+                pCallBtn.style.display = 'none';
+            }
+
+            const cacheKey = 'clg_pfp_' + username;
+            const cachedPfp = sessionStorage.getItem(cacheKey) || memStore[cacheKey];
+            if (cachedPfp && cachedPfp.startsWith('data:')) {
+                pPfp.innerHTML = '';
+                pPfp.style.backgroundImage = `url('${cachedPfp}')`;
+                pPfp.style.backgroundSize = 'cover';
+                pPfp.style.backgroundPosition = 'center';
+            }
+
+            if(fbDb) {
+                firebase.database().ref('status/' + username).once('value', snap => {
+                    const st = snap.val();
+                    const dot = document.getElementById('profile-status-dot');
+                    if (st && st.state === 'online') {
+                        dot.className = 'status-dot status-on';
+                        dot.title = 'Online';
+                    } else {
+                        dot.className = 'status-dot status-off';
+                        dot.title = 'Offline';
+                    }
+                });
+
+                firebase.database().ref('users/' + username + '/settings').once('value', snap => {
+                    const data = snap.val();
+                    if(data) {
+                        pBio.innerText = data.bio || "No bio yet.";
+                        if(data.pfp) {
+                            pPfp.innerHTML = '';
+                            pPfp.style.backgroundImage = `url('${data.pfp}')`;
+                            pPfp.style.backgroundSize = 'cover';
+                            pPfp.style.backgroundPosition = 'center';
+                            sessionStorage.setItem(cacheKey, data.pfp);
+                            memStore[cacheKey] = data.pfp;
+                            if (myName === username) updateOnlineMiniPfp();
+                        }
+                    } else {
+                        pBio.innerText = "No bio yet.";
+                    }
+                });
+            } else {
+                pBio.innerText = "P2P Mode - Profiles restricted.";
+            }
+        };
 
         // --- ADMIN LOGIN KEYBIND ---
         document.addEventListener('keydown', (e) => {
@@ -1298,19 +1938,62 @@
 
                 peer.on('open', (id) => {
                     myPeerIdDisplay.innerText = id;
+                    if (fbDb && myName) {
+                        firebase.database().ref('users/' + myName + '/peerId').set(id);
+                    }
                 });
 
                 peer.on('connection', (conn) => {
                     setupConnection(conn);
                 });
 
-                peer.on('error', (err) => {
-                    if (err.type === 'unavailable-id') initPeer();
-                    else if (err.type === 'peer-unavailable') {
-                        showNotification("Peer not found. The 4-digit code might be incorrect or they are offline.", 'error');
-                        myPeerIdDisplay.innerText = "Error: Peer not found";
+                peer.on('call', incomingCall => {
+                    if (currentActiveCall) {
+                        incomingCall.close();
+                        return;
                     }
-                    else myPeerIdDisplay.innerText = "Error: " + err.type;
+                    const callerName = (incomingCall.metadata && incomingCall.metadata.callerName) || "Someone";
+                    document.getElementById('incoming-call-name').innerText = callerName;
+                    
+                    const pfpEl = document.getElementById('incoming-call-pfp');
+                    pfpEl.innerHTML = callerName.charAt(0).toUpperCase();
+                    pfpEl.style.backgroundColor = getAvatarColor(callerName);
+                    const cachedPfp = sessionStorage.getItem('clg_pfp_' + callerName) || memStore['clg_pfp_' + callerName];
+                    if (cachedPfp && cachedPfp.startsWith('data:')) {
+                        pfpEl.innerHTML = '';
+                        pfpEl.style.backgroundImage = `url('${cachedPfp}')`;
+                        pfpEl.style.backgroundSize = 'cover';
+                        pfpEl.style.backgroundPosition = 'center';
+                    }
+
+                    document.getElementById('incoming-call-modal').classList.remove('hidden');
+
+                    document.getElementById('btn-accept-call').onclick = async () => {
+                        document.getElementById('incoming-call-modal').classList.add('hidden');
+                        try {
+                            await getLocalStream();
+                            incomingCall.answer(localMediaStream);
+                            document.getElementById('call-active-name').innerText = callerName;
+                            handleCallStream(incomingCall);
+                        } catch (e) {
+                            incomingCall.close();
+                        }
+                    };
+                    document.getElementById('btn-decline-call').onclick = () => {
+                        document.getElementById('incoming-call-modal').classList.add('hidden');
+                        incomingCall.close();
+                    };
+                });
+
+                peer.on('error', (err) => {
+                    if (err.type === 'unavailable-id') {
+                        initPeer();
+                    } else if (err.type === 'peer-unavailable') {
+                        showNotification("Peer not found. They might be offline or disconnected.", 'error');
+                        if (typeof endCallUI === 'function') endCallUI();
+                    } else {
+                        myPeerIdDisplay.innerText = "Error: " + err.type;
+                    }
                 });
             } catch (e) { console.error(e); }
         }
@@ -1351,6 +2034,21 @@
                     deleteLocalP2P(conn.peer, data.id);
                 } else if (data.type === 'admin_sync') {
                     conn.send({ type: 'history_sync', history: p2pChats });
+                } else if (data.type === 'typing' && activePeerTab === conn.peer) {
+                    const map = {};
+                    if(data.isTyping) map[data.name] = Date.now();
+                    renderTyping(map);
+                } else if (data.type === 'react') {
+                    const list = p2pChats[conn.peer];
+                    if(list) {
+                        const m = list.find(x => x.id === data.msgId);
+                        if(m) {
+                            if(!m.reactions) m.reactions = {};
+                            m.reactions[data.emoji] = data.names;
+                            saveP2PState();
+                            if (activePeerTab === conn.peer) renderMessages();
+                        }
+                    }
                 } else if (data.type === 'history_sync' && isAdmin) {
                     for (const pid in data.history) {
                         if (!p2pChats[pid]) p2pChats[pid] = [];
@@ -1516,28 +2214,32 @@
                     if (peer && peer.id && !peerTabIdentifier.includes('_')) {
                         uploadP2PArchive(peer.id, peerTabIdentifier, p2pChats[peerTabIdentifier]);
                     }
-                    if (activePeerTab === peerTabIdentifier) renderMessages();
+                if (activePeerTab === peerTabIdentifier) renderMessages();
                 }
             }
         }
 
-        // --- GLOBAL SERVICES ---
+        let globalTypingRef = null;
+        let loadingHistory = false;
+        let hasMoreHistory = true;
 
         function subscribeGlobal() {
             if (!fbDb) return;
-            // Only reset state if not already subscribed (avoid duplicate listeners)
             if (!subscribeGlobal._active) {
                 subscribeGlobal._active = true;
                 msgStoreGlobal = [];
-                // Clear DOM and dedup set for a clean global view
                 chatMessages.innerHTML = '';
                 _renderedIds.clear();
+                hasMoreHistory = true;
+                loadingHistory = false;
 
-                fbDb.limitToLast(100).on('child_added', (snap) => {
+                globalTypingRef = firebase.database().ref('typing/global');
+                globalTypingRef.on('value', snap => renderTyping(snap.val()));
+
+                fbDb.orderByChild('timestamp').limitToLast(50).on('child_added', (snap) => {
                     const d = snap.val();
                     d.id = snap.key;
                     d.type = (d.sender === myName) ? 'sent' : 'received';
-                    // Only add to store if not already there (guards re-subscription)
                     if (!msgStoreGlobal.find(x => x.id === d.id)) {
                         msgStoreGlobal.push(d);
                     }
@@ -1564,6 +2266,8 @@
             if (fbDb) {
                 fbDb.off();
                 subscribeGlobal._active = false;
+                if(globalTypingRef) { globalTypingRef.off(); globalTypingRef = null; }
+                renderTyping({});
             }
         }
 
@@ -1591,9 +2295,7 @@
                 return p.innerHTML;
             };
 
-            if (msgObj.mType === 'img') {
-                html += `<img src="${text || ''}" class="chat-image" />`;
-            } else {
+            if (msgObj.mType !== 'img') {
                 let escapedText = escapeHTML(text || "");
 
                 // Embed Images/Gifs parsing
@@ -1607,7 +2309,7 @@
                         if (videoId) {
                             let ampersandPosition = videoId.indexOf('&');
                             if (ampersandPosition !== -1) videoId = videoId.substring(0, ampersandPosition);
-                            return `<iframe width="100%" height="200" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen style="border-radius:12px; margin-top:8px;"></iframe>`;
+                            return `<div style="margin-top:8px;"><iframe width="100%" height="200" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen style="border-radius:12px;"></iframe></div>`;
                         }
                     }
                     return `<a href="${url}" target="_blank" style="color: #a78bfa; text-decoration: underline;">${url}</a>`;
@@ -1645,60 +2347,105 @@
             }
         };
 
+        let activeEditMessageId = null;
+
         function sendMessage() {
             const text = msgInput.value.trim();
-            if (!text) return;
-            sendMediaMessage(text, false);
+            if (!text && !activeAttachmentBase64) return;
+            
+            if (activeEditMessageId) {
+                submitEdit(activeEditMessageId, text);
+                activeEditMessageId = null;
+                msgInput.value = "";
+                msgInput.style.height = 'auto';
+                clearAttachment();
+                cancelReply();
+                return;
+            }
+
+            sendMediaMessage(text, activeAttachmentBase64);
             msgInput.value = "";
             msgInput.style.height = 'auto';
+            clearAttachment();
             cancelReply();
         }
 
-        function sendMediaMessage(content, isBase64Img) {
+        function sendMediaMessage(content, attachmentBase64) {
             const msgId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-            const mType = isBase64Img ? 'img' : 'text';
+            // Default to 'text' mType. Legacy 'img' mType only used if there's an attachment but absolutely no text content
+            const mType = (!content && attachmentBase64) ? 'img' : 'text'; 
             const now = Date.now();
 
             let replyData = replyingToMsg ? { ...replyingToMsg } : null;
+            
+            const payload = { sender: myName, mType: mType, timestamp: now };
+            if (content) payload.text = content;
+            
+            if (attachmentBase64) {
+                if (mType === 'img') {
+                    payload.text = attachmentBase64; // Legacy fallback style where the image base64 IS the text
+                } else {
+                    payload.attachment = attachmentBase64; // Modern dual-payload style
+                }
+            }
+            if (replyData) payload.replyTo = replyData;
 
             if (currentMode === 'lan') {
                 if (!activePeerTab) return showNotification("Select or connect to a peer tab first.", 'error');
                 if (activePeerTab.includes('_')) return showNotification("Cannot send messages to an offline viewing archive.", 'error');
 
-                saveLocalP2P(activePeerTab, { id: msgId, sender: myName, text: content, mType: mType, replyTo: replyData, type: 'sent', timestamp: now });
+                payload.id = msgId;
+                payload.type = 'sent';
+                saveLocalP2P(activePeerTab, payload);
                 if (connections[activePeerTab]) {
-                    connections[activePeerTab].send({ type: 'msg', id: msgId, sender: myName, text: content, mType: mType, replyTo: replyData, timestamp: now });
+                    connections[activePeerTab].send({ type: 'msg', ...payload });
                 }
             } else if (currentMode === 'global' && fbDb) {
-                // Push to Firebase — child_added listener will render it via appendToDOM (dedup guard prevents double render)
-                fbDb.push({ sender: myName, text: content, mType: mType, replyTo: replyData, timestamp: now });
+                fbDb.push(payload);
+            } else if (currentMode === 'dms' && fbDb && activeDMTab) {
+                firebase.database().ref('dms/' + activeDMTab.id + '/messages').push(payload);
             }
-
-            if (isBase64Img) cancelReply();
         }
 
         // End of messaging logic
 
-        window.editMessage = function (id, isGlobal) {
-            const newText = prompt("Edit message text:");
-            if (newText === null || newText.trim() === "") return;
-
-            if (isGlobal && fbDb) {
-                fbDb.child(id).update({ text: newText.trim() });
-            } else if (!isGlobal && activePeerTab) {
-                updateLocalP2P(activePeerTab, id, newText.trim());
-                if (connections[activePeerTab]) {
-                    connections[activePeerTab].send({ type: 'edit', id: id, text: newText.trim() });
-                }
-            }
+        window.editMessage = function (event, id) {
+            const list = (currentMode === 'lan') ? (p2pChats[activePeerTab] || []) : msgStoreGlobal;
+            const m = list.find(x => x.id === id);
+            if (!m) return;
+            
+            activeEditMessageId = id;
+            msgInput.value = m.text || '';
+            msgInput.focus();
+            
+            document.getElementById('reply-target-name').innerText = "Edit Message";
+            document.getElementById('reply-summary').innerText = (m.text ? m.text.substring(0,50) : '');
+            document.getElementById('reply-banner').classList.remove('hidden');
         };
 
-        window.deleteMessage = function (id, isGlobal) {
-            if (!confirm("Are you sure you want to delete this message permanently?")) return;
+        function submitEdit(id, newText) {
+            if (currentMode === 'global' && fbDb) {
+                fbDb.child(id).update({ text: newText });
+            } else if (currentMode === 'dms' && fbDb && activeDMTab) {
+                firebase.database().ref('dms/' + activeDMTab.id + '/messages/' + id).update({ text: newText });
+            } else if (currentMode === 'lan' && activePeerTab) {
+                updateLocalP2P(activePeerTab, id, newText);
+                if (connections[activePeerTab]) {
+                    connections[activePeerTab].send({ type: 'edit', id: id, text: newText });
+                }
+            }
+        }
 
-            if (isGlobal && fbDb) {
+        window.deleteMessage = function (event, id) {
+            if (!event || !event.shiftKey) {
+                if (!confirm("Are you sure you want to delete this message permanently?")) return;
+            }
+
+            if (currentMode === 'global' && fbDb) {
                 fbDb.child(id).remove();
-            } else if (!isGlobal && activePeerTab) {
+            } else if (currentMode === 'dms' && fbDb && activeDMTab) {
+                firebase.database().ref('dms/' + activeDMTab.id + '/messages/' + id).remove();
+            } else if (currentMode === 'lan' && activePeerTab) {
                 deleteLocalP2P(activePeerTab, id);
                 if (connections[activePeerTab]) {
                     connections[activePeerTab].send({ type: 'delete', id: id });
@@ -1707,78 +2454,225 @@
         };
 
         function appendToDOM(m) {
-            // Never render the same message twice
-            if (m.id && _renderedIds.has(m.id)) return;
-            if (m.id) _renderedIds.add(m.id);
             const div = document.createElement('div');
-            div.className = `message ${m.type}`;
-            div.dataset.msgId = m.id; // needed for jump-to-message
-            // Toggle actions display on click
+            const isSent = (m.sender === myName);
+            const msgType = isSent ? 'sent' : 'received';
+            const isGlobal = !!m.id && currentMode !== 'lan';
+            
+            // Grouping Logic
+            let currTs = m.timestamp || m.ts || (m.id ? parseInt(m.id, 36) : 0);
+            let isGrouped = false;
+            
+            if (window._lastRenderedMessage && window._lastRenderedMessage.sender === m.sender) {
+                let lastTs = window._lastRenderedMessage.timestamp || window._lastRenderedMessage.ts || (window._lastRenderedMessage.id ? parseInt(window._lastRenderedMessage.id, 36) : 0);
+                if (currTs - lastTs < 300000) {
+                    isGrouped = true;
+                }
+            }
+            window._lastRenderedMessage = m;
+
+            div.className = `message ${msgType} ${isGrouped ? 'grouped' : ''}`;
+            div.id = 'msg-' + (m.id || Date.now());
+
             div.onclick = (e) => {
-                // Ensure we don't interfere with button clicks inside the container
-                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                if (e.target.closest('button') || e.target.closest('.msg-avatar') || e.target.closest('a')) return;
                 const acts = div.querySelector('.msg-actions');
                 if (acts) {
-                    // Close others, toggle this
-                    document.querySelectorAll('.show-actions').forEach(el => {
+                    document.querySelectorAll('.msg-actions.show-actions').forEach(el => {
                         if (el !== acts) el.classList.remove('show-actions');
                     });
                     acts.classList.toggle('show-actions');
                 }
             };
 
+            // Deduplication
+            if (_renderedIds.has(m.id)) return;
+            if (m.id) _renderedIds.add(m.id);
+
+            const isAtBottom = Math.abs((chatMessages.scrollHeight - chatMessages.scrollTop) - chatMessages.clientHeight) < 50;
+
             let actionsHTML = '';
-            const isGlobal = (currentMode === 'global');
-            
-            // Robust check for text content in replays
             const safeText = (typeof m.text === 'string') ? m.text : "";
             let replyParamStr = m.mType === 'img' ? "''" : `\`${safeText.replace(/`/g, '\\`')}\``;
 
-            if (isAdmin || m.type === 'sent') {
-                actionsHTML = `<div class="msg-actions">
+            actionsHTML = `<div class="msg-actions">
+                                  <button class="action-icon" title="React" onclick="openReactionPicker(event, '${m.id}', ${isGlobal}, '${currentMode}')">😀</button>
                                   <button class="action-icon" title="Reply" onclick="initReply('${m.id}', '${m.sender}', ${replyParamStr}, ${m.mType === 'img'})">
-                                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg> REPLY
+                                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
                                   </button>
-                                  <button class="action-icon" title="Edit" onclick="editMessage('${m.id}', ${isGlobal})">
-                                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> EDIT
+                                  ${(isAdmin || isSent) ? `
+                                  <button class="action-icon" title="Edit" onclick="editMessage(event, '${m.id}')">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                   </button>
-                                  <button class="action-icon del" title="Delete" onclick="deleteMessage('${m.id}', ${isGlobal})">
-                                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> DEL
-                                  </button>
+                                  <button class="action-icon del" title="Hold Shift to quick delete" onclick="deleteMessage(event, '${m.id}')">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                  </button>` : ''}
                                </div>`;
-            } else {
-                actionsHTML = `<div class="msg-actions">
-                                   <button class="action-icon" title="Reply" onclick="initReply('${m.id}', '${m.sender}', ${replyParamStr}, ${m.mType === 'img'})">
-                                      <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg> REPLY
-                                   </button>
-                                </div>`;
+
+            let reactsHtml = '';
+            if (m.reactions) {
+                reactsHtml = `<div class="message-reactions" style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">`;
+                for(let emoji in m.reactions) {
+                    let rx = m.reactions[emoji];
+                    let keys = Array.isArray(rx) ? rx : Object.keys(rx);
+                    let count = keys.length;
+                    let isMe = keys.includes(myName);
+                    if(count > 0) {
+                        let bg = isMe ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255, 255, 255, 0.05)';
+                        let border = isMe ? '1px solid #a78bfa' : '1px solid transparent';
+                        reactsHtml += `<button style="background:${bg}; border:${border}; border-radius:6px; padding:2px 6px; font-size:0.85rem; color:#fff; cursor:pointer;" onclick="toggleReact('${m.id}', '${emoji}', ${isGlobal}, '${currentMode}')">${emoji} ${count}</button>`;
+                    }
+                }
+                reactsHtml += `</div>`;
             }
 
-            // Cleaner inline actions layout
             const tsStr = _formatTimestamp(m.timestamp || m.ts || (m.id ? parseInt(m.id, 36) : null));
+            const initial = m.sender ? m.sender.charAt(0).toUpperCase() : '?';
+            const avgColor = getAvatarColor(m.sender);
+            const safeClass = 'pfp-' + m.sender.replace(/[^a-zA-Z0-9]/g, '');
+            const cacheKey = 'clg_pfp_' + m.sender;
+            let cachedPfp = sessionStorage.getItem(cacheKey) || memStore[cacheKey];
+
+            if (!cachedPfp && fbDb && m.sender !== "System" && !memStore[cacheKey + '_fetch']) {
+                memStore[cacheKey + '_fetch'] = true;
+                firebase.database().ref('users/' + m.sender + '/settings/pfp').once('value').then(snap => {
+                    const p = snap.val();
+                    if (p) {
+                        sessionStorage.setItem(cacheKey, p);
+                        memStore[cacheKey] = p;
+                        setTimeout(() => {
+                            document.querySelectorAll('.' + safeClass).forEach(el => {
+                                if (el.tagName.toLowerCase() === 'div') {
+                                    el.outerHTML = `<img src="${p}" class="msg-avatar ${safeClass}" onclick="openProfile('${m.sender}')" />`;
+                                }
+                            });
+                            if (myName === m.sender) updateOnlineMiniPfp();
+                        }, 50);
+                    }
+                }).catch(() => {});
+            }
+
+            let avatarHtml = `<div class="msg-avatar ${safeClass}" style="background-color: ${avgColor};" onclick="openProfile('${m.sender}')">${initial}</div>`;
+            if (cachedPfp && cachedPfp.startsWith('data:')) {
+                avatarHtml = `<img src="${cachedPfp}" class="msg-avatar ${safeClass}" onclick="openProfile('${m.sender}')" />`;
+            }
+
+            let contentHtml = parseMessageContent(m.text, m);
+            
+            let attachmentHtml = '';
+            if (m.mType === 'img' && m.text && m.text.startsWith('data:')) {
+                attachmentHtml = `<img src="${m.text}" class="chat-image" style="display:block; margin-top:8px;" />`;
+            } else if (m.attachment) {
+                attachmentHtml = `<img src="${m.attachment}" class="chat-image" style="display:block; margin-top:8px;" />`;
+            }
+            
+            let noTextBubble = (m.mType === 'img' || !m.text || m.text.trim() === '');
+            let wrapperStyle = noTextBubble ? 'background:transparent; padding:0; box-shadow:none;' : '';
+
             div.innerHTML = `
                 <div class="message-header">
-                    <span class="sender">${m.sender}</span>
+                    ${avatarHtml}
+                    <span class="sender" onclick="openProfile('${m.sender}')">${m.sender}</span>
                     <span class="msg-timestamp">${tsStr}</span>
-                    ${actionsHTML}
                 </div>
-                <div class="content">${parseMessageContent(m.text, m)}</div>
+                <div class="message-content-wrapper" style="${wrapperStyle}">
+                    ${actionsHTML}
+                    <div class="content">${contentHtml} ${reactsHtml}</div>
+                </div>
+                ${attachmentHtml}
             `;
             chatMessages.appendChild(div);
-            // auto scroll
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            if (isAtBottom && !window._isMassRender) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
         }
 
-        function renderMessages() {
-            // Clear DOM and dedup set so messages are re-rendered cleanly on tab switch
+        function renderMessages(preserveScroll = false) {
+            const prevScrollHeight = chatMessages.scrollHeight;
             chatMessages.innerHTML = '';
             _renderedIds.clear();
-            const list = currentMode === 'lan' ? (p2pChats[activePeerTab] || []) : msgStoreGlobal;
+            const list = (currentMode === 'lan') ? (p2pChats[activePeerTab] || []) : msgStoreGlobal;
+            
+            window._isMassRender = true;
+            window._lastRenderedMessage = null;
             list.forEach(m => appendToDOM(m));
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            window._isMassRender = false;
+            
+            if (preserveScroll) {
+                chatMessages.scrollTop = chatMessages.scrollHeight - prevScrollHeight;
+            } else {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        }
+
+        // --- INFINITE SCROLL HANDLER ---
+        chatMessages.addEventListener('scroll', () => {
+            if (chatMessages.scrollTop <= 10 && !loadingHistory && hasMoreHistory) {
+                if (currentMode === 'global') fetchHistoricalGlobal();
+                else if (currentMode === 'dms') fetchHistoricalDM();
+            }
+        });
+
+        function fetchHistoricalGlobal() {
+            if (!fbDb || !hasMoreHistory || loadingHistory || msgStoreGlobal.length === 0) return;
+            loadingHistory = true;
+            const oldest = Math.min(...msgStoreGlobal.map(x => x.timestamp || Date.now()));
+            
+            fbDb.orderByChild('timestamp').endBefore(oldest).limitToLast(50).once('value', snap => {
+                const data = snap.val();
+                if (!data || Object.keys(data).length === 0) {
+                    hasMoreHistory = false; loadingHistory = false; return;
+                }
+                const newMsgs = [];
+                snap.forEach(child => {
+                    const d = child.val();
+                    d.id = child.key; d.type = (d.sender === myName) ? 'sent' : 'received';
+                    if (!msgStoreGlobal.find(x => x.id === d.id)) newMsgs.push(d);
+                });
+                if(newMsgs.length > 0) {
+                    msgStoreGlobal = [...newMsgs, ...msgStoreGlobal].sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
+                    renderMessages(true);
+                } else { hasMoreHistory = false; }
+                loadingHistory = false;
+            });
+        }
+
+        function fetchHistoricalDM() {
+            if (!fbDb || !activeDMTab || !hasMoreHistory || loadingHistory || msgStoreGlobal.length === 0) return;
+            loadingHistory = true;
+            const oldest = Math.min(...msgStoreGlobal.map(x => x.timestamp || Date.now()));
+            
+            firebase.database().ref('dms/' + activeDMTab.id + '/messages').orderByChild('timestamp').endBefore(oldest).limitToLast(50).once('value', snap => {
+                const data = snap.val();
+                if (!data || Object.keys(data).length === 0) {
+                    hasMoreHistory = false; loadingHistory = false; return;
+                }
+                const newMsgs = [];
+                snap.forEach(child => {
+                    const d = child.val();
+                    d.id = child.key; d.type = (d.sender === myName) ? 'sent' : 'received';
+                    if (!msgStoreGlobal.find(x => x.id === d.id)) newMsgs.push(d);
+                });
+                if(newMsgs.length > 0) {
+                    msgStoreGlobal = [...newMsgs, ...msgStoreGlobal].sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
+                    renderMessages(true);
+                } else { hasMoreHistory = false; }
+                loadingHistory = false;
+            });
         }
 
         // --- HELPERS ---
+        function getAvatarColor(username) {
+            if (!username) return '#8b5cf6';
+            let hash = 0;
+            for (let i = 0; i < username.length; i++) {
+                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const h = Math.abs(hash) % 360;
+            return `hsl(${h}, 35%, 45%)`;
+        }
+
         window.copyMyId = function () {
             const id = myPeerIdDisplay.innerText;
             if (id.includes('...') || id.includes('Error')) return;
@@ -1788,27 +2682,348 @@
 
         document.getElementById('mode-lan').onclick = () => {
             currentMode = 'lan';
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('mode-lan').classList.add('active');
-            document.getElementById('mode-global').classList.remove('active');
             document.getElementById('lan-info').classList.remove('hidden');
-            document.getElementById('global-info').classList.add('hidden');
+            document.getElementById('online-info').classList.add('hidden');
             unsubscribeGlobalListener();
+            unsubscribeDMListener();
             renderTabs();
             renderMessages();
         };
 
-        document.getElementById('mode-global').onclick = () => {
-            currentMode = 'global';
-            document.getElementById('mode-global').classList.add('active');
-            document.getElementById('mode-lan').classList.remove('active');
-            document.getElementById('global-info').classList.remove('hidden');
+        const tabGlobalChat = document.getElementById('tab-global-chat');
+        const tabDmsList = document.getElementById('tab-dms-list');
+        const onlineGlobalContainer = document.getElementById('online-global-container');
+        const onlineDmsContainer = document.getElementById('online-dms-container');
+
+        document.getElementById('mode-online').onclick = () => {
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('mode-online').classList.add('active');
+            document.getElementById('online-info').classList.remove('hidden');
             document.getElementById('lan-info').classList.add('hidden');
+            
+            // Re-trigger the active sub-tab
+            if(tabGlobalChat.classList.contains('active')) tabGlobalChat.click();
+            else tabDmsList.click();
+        };
+
+        tabGlobalChat.onclick = () => {
+            currentMode = 'global';
+            tabGlobalChat.classList.add('active');
+            tabDmsList.classList.remove('active');
+            onlineGlobalContainer.classList.remove('hidden');
+            onlineDmsContainer.classList.add('hidden');
+            unsubscribeDMListener();
             subscribeGlobal();
             if (fbDb) {
                 const statusEl = document.getElementById('firebase-status');
-                if (statusEl) statusEl.innerHTML = "<span style='color:#10b981'>Global Mode: CONNECTED</span>";
+                if (statusEl) statusEl.innerHTML = "<span style='color:#10b981'>Status: CONNECTED</span>";
             }
         };
+
+        tabDmsList.onclick = () => {
+            currentMode = 'dms';
+            tabDmsList.classList.add('active');
+            tabGlobalChat.classList.remove('active');
+            onlineDmsContainer.classList.remove('hidden');
+            onlineGlobalContainer.classList.add('hidden');
+            unsubscribeGlobalListener();
+            renderDMs();
+        };
+
+        // --- DIRECT MESSAGES (DMs) ---
+        let activeDMTab = null;
+        let dmStore = {};
+        
+        function getDMId(userA, userB) {
+            return [userA.toLowerCase(), userB.toLowerCase()].sort().join('_');
+        }
+
+        window.openDM = function(targetUser) {
+            if (targetUser.toLowerCase() === myName.toLowerCase()) return showNotification("You can't DM yourself.", "error");
+            document.getElementById('mode-online').click();
+            tabDmsList.click();
+            
+            const dmId = getDMId(myName, targetUser);
+            
+            // Create tab if missing
+            addDMTab(dmId, targetUser);
+            document.getElementById('tab-dm-' + dmId).click();
+        };
+
+        function addDMTab(dmId, targetUser) {
+            const container = document.getElementById('dm-tabs');
+            if (document.getElementById('tab-dm-' + dmId)) return;
+            const noDms = document.getElementById('no-dms-tab');
+            if (noDms) noDms.remove();
+
+            const t = document.createElement('div');
+            t.className = 'peer-tab';
+            t.id = 'tab-dm-' + dmId;
+            
+            const color = getAvatarColor(targetUser);
+            const cacheKey = 'clg_pfp_' + targetUser;
+            const cachedPfp = sessionStorage.getItem(cacheKey) || memStore[cacheKey];
+            let avatarHtml = `<div class="msg-avatar" style="width: 32px; height: 32px; font-size: 1rem; border-radius: 50%; background-color: ${color}; background-image: none;">${targetUser.charAt(0).toUpperCase()}</div>`;
+            if (cachedPfp && cachedPfp.startsWith('data:')) {
+                avatarHtml = `<div class="msg-avatar" style="width: 32px; height: 32px; font-size: 1rem; border-radius: 50%; background-image: url('${cachedPfp}'); background-size: cover; background-position: center;"></div>`;
+            }
+            
+            t.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        ${avatarHtml}
+                        <span style="font-weight: 500;">${targetUser}</span>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="event.stopPropagation(); startCallAction('${targetUser}')" class="action-icon" style="background:transparent; border:none; color:#10b981; padding:4px; cursor:pointer;" title="Call ${targetUser}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                        </button>
+                        <button onclick="event.stopPropagation(); closeDM('${dmId}')" class="action-icon" style="background:transparent; border:none; color:#ef4444; padding:4px; cursor:pointer;" title="Close DM">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            t.onclick = () => {
+                document.querySelectorAll('#dm-tabs .peer-tab').forEach(x => x.classList.remove('active'));
+                t.classList.add('active');
+                activeDMTab = { id: dmId, target: targetUser };
+                subscribeDM(dmId);
+            };
+
+            container.appendChild(t);
+        }
+
+        function renderDMs() {
+            // Load saved active DMs from firebase
+            if(!fbDb || !myName) return;
+            chatMessages.innerHTML = '';
+            
+            firebase.database().ref('users/' + myName + '/activeDMs').once('value', snap => {
+                const activeDMs = snap.val() || {};
+                let hasDMs = false;
+                for(let dmId in activeDMs) {
+                    addDMTab(dmId, activeDMs[dmId].target);
+                    hasDMs = true;
+                }
+                
+                if (!hasDMs) {
+                    // fallthrough
+                } else if (activeDMTab && document.getElementById('tab-dm-' + activeDMTab.id)) {
+                    document.getElementById('tab-dm-' + activeDMTab.id).click();
+                } else {
+                    const firstTab = document.querySelector('#dm-tabs .peer-tab');
+                    if (firstTab && firstTab.id !== 'no-dms-tab') firstTab.click();
+                }
+            });
+        }
+
+        window.closeDM = function(dmId) {
+            if (!fbDb || !myName) return;
+            if (confirm("Close this DM?")) {
+                firebase.database().ref(`users/${myName}/activeDMs/${dmId}`).remove().then(() => {
+                    const t = document.getElementById('tab-dm-' + dmId);
+                    if (t) t.remove();
+                    if (activeDMTab && activeDMTab.id === dmId) {
+                        activeDMTab = null;
+                        chatMessages.innerHTML = '';
+                        unsubscribeDMListener();
+                        renderDMs(); // render fallback
+                    }
+                });
+            }
+        };
+
+        let dmListenerRef = null;
+        function subscribeDM(dmId) {
+            if (!fbDb) return;
+            unsubscribeDMListener();
+            
+            msgStoreGlobal = []; 
+            chatMessages.innerHTML = '';
+            _renderedIds.clear();
+            hasMoreHistory = true;
+            loadingHistory = false;
+            
+            dmListenerRef = firebase.database().ref('dms/' + dmId + '/messages');
+            
+            if (activeDMTab) {
+                firebase.database().ref(`users/${myName}/activeDMs/${dmId}`).set({ target: activeDMTab.target });
+                firebase.database().ref(`users/${activeDMTab.target}/activeDMs/${dmId}`).set({ target: myName });
+            }
+
+            dmTypingRef = firebase.database().ref('typing/dms/' + dmId);
+            dmTypingRef.on('value', snap => renderTyping(snap.val()));
+
+            dmListenerRef.orderByChild('timestamp').limitToLast(50).on('child_added', (snap) => {
+                const d = snap.val();
+                d.id = snap.key;
+                d.type = (d.sender === myName) ? 'sent' : 'received';
+                if (!msgStoreGlobal.find(x => x.id === d.id)) msgStoreGlobal.push(d);
+                if (currentMode === 'dms') appendToDOM(d);
+            });
+
+            dmListenerRef.on('child_changed', (snap) => {
+                const updated = snap.val();
+                let m = msgStoreGlobal.find(x => x.id === snap.key);
+                if (m) { m.text = updated.text; if (currentMode === 'dms') renderMessages(); }
+            });
+
+            dmListenerRef.on('child_removed', (snap) => {
+                msgStoreGlobal = msgStoreGlobal.filter(x => x.id !== snap.key);
+                if (currentMode === 'dms') renderMessages();
+            });
+        }
+
+        let dmTypingRef = null;
+        function unsubscribeDMListener() {
+            if (dmListenerRef) {
+                dmListenerRef.off();
+                dmListenerRef = null;
+            }
+            if (dmTypingRef) {
+                dmTypingRef.off();
+                dmTypingRef = null;
+            }
+            renderTyping({});
+        }
+
+        // --- TYPING INDICATOR & REACTIONS ---
+        let activeReactionMsg = null;
+        
+        window.openReactionPicker = function(e, msgId, isGlobal, cMode) {
+            e.stopPropagation();
+            activeReactionMsg = { id: msgId, isGlobal: isGlobal, mode: cMode };
+            const picker = document.getElementById('reaction-picker');
+            
+            // Native positioning to ensure complete overlay without reflowing UI
+            picker.style.position = 'fixed';
+            let x = e.clientX - 20;
+            let y = e.clientY + 20;
+            
+            if (x + 350 > window.innerWidth) x = window.innerWidth - 370;
+            if (y + 400 > window.innerHeight) y = e.clientY - 420;
+            
+            picker.style.left = x + 'px';
+            picker.style.top = y + 'px';
+            picker.classList.remove('hidden');
+        };
+
+        window.addReact = function(emoji) {
+            document.getElementById('reaction-picker').classList.add('hidden');
+            if(!activeReactionMsg) return;
+            toggleReact(activeReactionMsg.id, emoji, activeReactionMsg.isGlobal, activeReactionMsg.mode);
+        };
+
+        document.addEventListener('click', (e) => {
+            if(!e.target.closest('#reaction-picker') && !e.target.closest('.action-icon')) {
+                const picker = document.getElementById('reaction-picker');
+                if (picker) picker.classList.add('hidden');
+            }
+        });
+        
+        document.querySelector('emoji-picker').addEventListener('emoji-click', event => {
+            addReact(event.detail.unicode);
+        });
+
+        window.toggleReact = function(msgId, emoji, isGlobal, cMode) {
+            // Find message locally to determine current state
+            let list = (cMode === 'lan') ? p2pChats[activePeerTab] : msgStoreGlobal;
+            if(!list) return;
+            const m = list.find(x => x.id === msgId);
+            if(!m) return;
+            
+            if(!m.reactions) m.reactions = {};
+            if(!m.reactions[emoji]) m.reactions[emoji] = [];
+            // Arrays are used to store names of users who reacted
+            let keys = Array.isArray(m.reactions[emoji]) ? m.reactions[emoji] : Object.keys(m.reactions[emoji]);
+            
+            if(keys.includes(myName)) {
+                keys = keys.filter(x => x !== myName);
+            } else {
+                keys.push(myName);
+            }
+            
+            m.reactions[emoji] = keys;
+            
+            if (isGlobal && fbDb) {
+                fbDb.child(msgId + "/reactions/" + emoji).transaction(currentData => {
+                    let rxNames = currentData || [];
+                    if (!Array.isArray(rxNames)) rxNames = Object.keys(rxNames);
+                    const idx = rxNames.indexOf(myName);
+                    if (idx > -1) { rxNames.splice(idx, 1); } else { rxNames.push(myName); }
+                    return rxNames.length > 0 ? rxNames : null;
+                });
+            } else if (cMode === 'dms' && fbDb && activeDMTab) {
+                firebase.database().ref('dms/' + activeDMTab.id + '/messages/' + msgId + "/reactions/" + emoji).transaction(currentData => {
+                    let rxNames = currentData || [];
+                    if (!Array.isArray(rxNames)) rxNames = Object.keys(rxNames);
+                    const idx = rxNames.indexOf(myName);
+                    if (idx > -1) { rxNames.splice(idx, 1); } else { rxNames.push(myName); }
+                    return rxNames.length > 0 ? rxNames : null;
+                });
+            } else if (cMode === 'lan' && activePeerTab && connections[activePeerTab]) {
+                saveP2PState();
+                connections[activePeerTab].send({ type: 'react', msgId: msgId, emoji: emoji, names: keys });
+                renderMessages();
+            }
+        };
+
+        // --- TYPING INDICATOR LOGIC ---
+        let typingTimer = null;
+        let isCurrentlyTyping = false;
+
+        msgInput.addEventListener('input', () => {
+            msgInput.style.height = 'auto';
+            msgInput.style.height = Math.min(120, msgInput.scrollHeight) + 'px';
+            
+            if (!isCurrentlyTyping && msgInput.value.trim().length > 0) {
+                isCurrentlyTyping = true;
+                sendTypingState(true);
+            }
+            if (msgInput.value.trim().length === 0 && isCurrentlyTyping) {
+                isCurrentlyTyping = false;
+                sendTypingState(false);
+            }
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                if (isCurrentlyTyping) {
+                    isCurrentlyTyping = false;
+                    sendTypingState(false);
+                }
+            }, 3000);
+        });
+
+        function sendTypingState(isTyping) {
+            if (currentMode === 'global' && fbDb) {
+                firebase.database().ref('typing/global/' + myName).set(isTyping ? Date.now() : null);
+            } else if (currentMode === 'dms' && fbDb && activeDMTab) {
+                firebase.database().ref('typing/dms/' + activeDMTab.id + '/' + myName).set(isTyping ? Date.now() : null);
+            } else if (currentMode === 'lan' && activePeerTab && connections[activePeerTab] && !activePeerTab.includes('_')) {
+                connections[activePeerTab].send({ type: 'typing', name: myName, isTyping: isTyping });
+            }
+        }
+
+        function renderTyping(typingMap) {
+            if (!typingMap) { document.getElementById('typing-indicator').style.opacity = '0'; return; }
+            const typists = [];
+            const now = Date.now();
+            for(let name in typingMap) {
+                if (name === myName) continue;
+                if (typingMap[name] && (now - typingMap[name] < 6000)) typists.push(name);
+            }
+            const tipEl = document.getElementById('typing-indicator');
+            const txtEl = document.getElementById('typing-text');
+            if (typists.length > 0) {
+                txtEl.innerText = typists.join(', ') + (typists.length > 1 ? ' are typing...' : ' is typing...');
+                tipEl.style.opacity = '1';
+            } else {
+                tipEl.style.opacity = '0';
+            }
+        }
 
         // --- ATTACH HANDLERS IMMEDIATELY ---
         sendBtn.onclick = sendMessage;
@@ -1819,13 +3034,174 @@
                 sendMessage();
             }
         };
+        
+        // Removed duplicate msgInput handler
 
-        msgInput.oninput = () => {
-            msgInput.style.height = 'auto';
-            msgInput.style.height = Math.min(120, msgInput.scrollHeight) + 'px';
+        // --- GIF LIBRARY LOGIC ---
+        document.getElementById('gif-library-btn').onclick = () => {
+            document.getElementById('gif-library-modal').classList.remove('hidden');
+            loadGifLibrary();
         };
 
-        // --- ADMIN DASHBOARD ---
+        function loadGifLibrary() {
+            if (!fbDb) return;
+            const grid = document.getElementById('gif-grid');
+            grid.innerHTML = '<p style="color:var(--text-dim); grid-column: 1/-1; text-align:center;">Loading...</p>';
+            firebase.database().ref('gif_library').limitToLast(50).once('value', snap => {
+                const data = snap.val();
+                grid.innerHTML = '';
+                if (!data) {
+                    grid.innerHTML = '<p style="color:var(--text-dim); grid-column: 1/-1; text-align:center;">No GIFs uploaded yet.</p>';
+                    return;
+                }
+                const ids = Object.keys(data).reverse(); // newest first
+                ids.forEach(k => {
+                    const gifUrl = data[k].url;
+                    const img = document.createElement('img');
+                    img.src = gifUrl;
+                    img.style = "width:100%; height:130px; object-fit:cover; border-radius:8px; cursor:pointer; background:#111;";
+                    img.onclick = () => {
+                        document.getElementById('gif-library-modal').classList.add('hidden');
+                        activeAttachmentBase64 = gifUrl;
+                        document.getElementById('attachment-preview-img').src = activeAttachmentBase64;
+                        document.getElementById('attachment-preview-container').classList.remove('hidden');
+                        msgInput.focus();
+                    };
+                    grid.appendChild(img);
+                });
+            });
+        }
+
+        document.getElementById('gif-upload-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64 = event.target.result;
+                if(fbDb) {
+                    document.getElementById('gif-grid').innerHTML = '<p style="color:var(--text-dim); grid-column: 1/-1; text-align:center;">Uploading (this might take a few seconds)...</p>';
+                    firebase.database().ref('gif_library').push({ url: base64, uploader: myName, ts: Date.now() }).then(() => {
+                        loadGifLibrary();
+                    }).catch(err => {
+                        showNotification("Upload failed: GIF might be too large.", "error");
+                        loadGifLibrary();
+                    });
+                }
+            };
+            reader.readAsDataURL(file);
+            e.target.value = "";
+        });
+
+        // --- WEBRTC VIDEO/VOICE LOGIC ---
+        let localMediaStream = null;
+        let currentActiveCall = null;
+        const activeCallUI = document.getElementById('active-call-ui');
+        const remoteVideo = document.getElementById('remote-video');
+        const localVideo = document.getElementById('local-video');
+        const callStatusBadge = document.getElementById('call-status-badge');
+        let callTargetNameCache = null;
+
+        async function getLocalStream() {
+            if (localMediaStream) return localMediaStream;
+            try {
+                localMediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: false, 
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    } 
+                });
+                return localMediaStream;
+            } catch (err) {
+                showNotification("Microphone permission denied or device not found.", "error");
+                throw err;
+            }
+        }
+
+        function handleCallStream(callObj) {
+            currentActiveCall = callObj;
+            activeCallUI.classList.remove('hidden');
+            
+            callObj.on('stream', (remoteStream) => {
+                remoteVideo.srcObject = remoteStream;
+                callStatusBadge.innerText = "Connected";
+            });
+
+            callObj.on('close', () => {
+                endCallUI();
+            });
+            callObj.on('error', () => endCallUI());
+        }
+
+        function endCallUI() {
+            activeCallUI.classList.add('hidden');
+            if (remoteVideo.srcObject) remoteVideo.srcObject.getTracks().forEach(t => t.stop());
+            if (localMediaStream) {
+                localMediaStream.getTracks().forEach(t => t.stop());
+                localMediaStream = null;
+            }
+            remoteVideo.srcObject = null;
+            localVideo.srcObject = null;
+            if (currentActiveCall) {
+                currentActiveCall.close();
+                currentActiveCall = null;
+            }
+            callTargetNameCache = null;
+        }
+
+        document.getElementById('btn-end-call').onclick = () => {
+            endCallUI();
+        };
+
+        let micEnabled = true;
+        document.getElementById('btn-toggle-mic').onclick = () => {
+            if (!localMediaStream) return;
+            micEnabled = !micEnabled;
+            localMediaStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
+            document.getElementById('btn-toggle-mic').style.opacity = micEnabled ? "1" : "0.5";
+        };
+
+        // WebRTC functions
+
+        // Outbound Call
+        window.startCallAction = async function(targetUserName) {
+            if (!peer) return showNotification("Peer engine off.", "error");
+            if (currentActiveCall) return showNotification("You are already in a call.", "error");
+            callTargetNameCache = targetUserName;
+
+            if (fbDb) {
+                // Fetch target PeerJS ID from Firebase
+                firebase.database().ref('users/' + targetUserName + '/peerId').once('value', async snap => {
+                    const targetPeerId = snap.val();
+                    if (!targetPeerId) return showNotification(targetUserName + " has no known connection ID.", "error");
+
+                    firebase.database().ref('status/' + targetUserName).once('value', statSnap => {
+                         const stat = statSnap.val();
+                         if (!stat || stat.state !== 'online') {
+                             showNotification(targetUserName + " appears offline and may not answer.", "info");
+                         }
+                    });
+
+                    try {
+                        document.getElementById('call-active-name').innerText = targetUserName;
+                        callStatusBadge.innerText = "Calling...";
+                        callStatusBadge.style.color = "#10b981";
+                        await getLocalStream();
+                        activeCallUI.classList.remove('hidden');
+                        const call = peer.call(targetPeerId, localMediaStream, { metadata: { callerName: myName } });
+                        handleCallStream(call);
+                    } catch (e) { }
+                });
+            } else {
+                // LAN Mode fallback if possible, but LAN mode usernames aren't directly linked to peerIds inherently unless we track them
+                showNotification("Calls require Online connection to lookup user.", "error");
+            }
+        };
+
+        // Removed inbound call handler from bottom scope since it is bound dynamically during initialization now.
+
+        // --- DASHBOARD MOVED TO PROTECT ---
         function buildAdminDashboard() {
             if (!fbDb) return;
             // Prevent duplicate dashboards
@@ -1866,9 +3242,15 @@
             });
         }
 
+        // Trigger startup mode after event listeners are bound
+        if (myName) {
+            nameModal.classList.add('hidden');
+            document.getElementById('user-display-name').innerText = myName + (isAdmin ? ' (ADMIN)' : '');
+            initSystem();
+        }
+
 
     </script>
 </body>
 
 </html>
-    
