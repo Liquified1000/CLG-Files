@@ -1405,6 +1405,9 @@
                     const statusEl = document.getElementById('firebase-status');
                     if (statusEl) statusEl.innerHTML = "<span style='color:#10b981'>Status: CONNECTED</span>";
                     initPresence();
+                    if (currentMode === 'global') {
+                        subscribeGlobal();
+                    }
                 } else {
                     setTimeout(initFirebase, 100);
                 }
