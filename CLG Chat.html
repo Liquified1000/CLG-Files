@@ -1487,7 +1487,7 @@
             joinBtn.innerText = "Register"; loginErr.style.display = 'none';
         };
 
-        if (isAdmin) updateAdminUI();
+        // Admin UI is initialized later in loginSuccess after Firebase is ready
 
         joinBtn.onclick = () => {
             let val = nameInput.value.trim();
@@ -1545,6 +1545,7 @@
             document.getElementById('user-display-name').innerText = myName + (isAdmin ? ' (ADMIN)' : '');
             initPresence();
             initSystem();
+            if (isAdmin) updateAdminUI();
             updateOnlineMiniPfp();
             loadSettings();
         }
@@ -3270,6 +3271,7 @@
             nameModal.classList.add('hidden');
             document.getElementById('user-display-name').innerText = myName + (isAdmin ? ' (ADMIN)' : '');
             initSystem();
+            if (isAdmin) updateAdminUI();
             initPresence();
         }
 
